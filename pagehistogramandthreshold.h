@@ -1,16 +1,18 @@
 #ifndef PAGEHISTOGRAMANDTHRESHOLD_H
 #define PAGEHISTOGRAMANDTHRESHOLD_H
 
-#include <QWidget>
+#include "sys.h"
 
-class PageHistogramAndThreshold : public QWidget
+class PageHistogramAndThreshold : public PageBase
 {
-    Q_OBJECT
 public:
-    explicit PageHistogramAndThreshold(QWidget *parent = nullptr);
+    explicit PageHistogramAndThreshold(PageBase *parent = nullptr);
 
 signals:
 
+private:
+
+    void setContainer();
 };
 
 #endif // PAGEHISTOGRAMANDTHRESHOLD_H

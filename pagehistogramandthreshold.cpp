@@ -1,7 +1,12 @@
 #include "pagehistogramandthreshold.h"
 
-PageHistogramAndThreshold::PageHistogramAndThreshold(QWidget *parent)
-    : QWidget{parent}
+PageHistogramAndThreshold::PageHistogramAndThreshold(PageBase *parent)
+    : PageBase{parent}
 {
+    setContainer();
+}
+
+
+void PageHistogramAndThreshold::setContainer(){
 
 }

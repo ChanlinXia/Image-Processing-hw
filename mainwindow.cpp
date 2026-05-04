@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "pagehistogramandthreshold.h"
+#include "pageimagefilter.h"
 #include "./ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -16,9 +18,10 @@ MainWindow::MainWindow(QWidget *parent)
         "Gray Morphological Function",    // pdf11
     };
 
-    for(auto& task:tasks_lists){
-        ui->tabWidget_task_tabs->addTab(nullptr,task);
-    }
+    auto page = new PageHistogramAndThreshold();
+    ui->tabWidget_task_tabs->addTab(page,"Histogram and Threshold");
+    ui->tabWidget_task_tabs->addTab(new pageImageFilter(),"Image Filters");
+
 }
 
 MainWindow::~MainWindow()
