@@ -70,8 +70,20 @@ struct ImageDisplayer:public QObject{
     void setImage(const cv::Mat& mat) {
         if (mat.empty()) return;
 
-        QImage img = cvMatToQImage(mat);
+        // generate the QImage
+        QImage img(mat.cols,mat.rows,QImage::Format_ARGB32);
+
         setImage(QPixmap::fromImage(img));
+    }
+
+    void setImage(const Eigen::MatrixXd& mat) {
+        if (mat.rows() == 0 || mat.cols() == 0) return;
+
+        // generate the QImage
+//        cv::eigen2cv(&mat,mat.rows(),mat.cols());
+//        QImage img(static_cast<uchar*>(mat.data()),mat.cols(),mat.rows(),QImage::Format_ARGB32);
+
+//        setImage(QPixmap::fromImage(img));
     }
 
     bool eventFilter(QObject* obj, QEvent* event) override {
@@ -86,9 +98,7 @@ struct ImageDisplayer:public QObject{
     std::unique_ptr<QGraphicsView> view_;
     std::unique_ptr<QGraphicsScene> scene_;
 
-    QImage cvMatToQImage(const cv::Mat& mat){
-        return QImage();
-    }
+
 };
 
 
@@ -97,9 +107,20 @@ class PageBase : public QWidget
     Q_OBJECT
 public:
     explicit PageBase(QWidget *parent = nullptr);
+    ~PageBase(){
+        // delete [] &file_path_;
+        // delete [] &vec_image_displayer_;
+    }
 
+    QBoxLayout* getContainerLayout(){
+        return container_layout_;
+    }
+
+    std::vector<ImageDisplayer>& getImageDisplayer(){
+        return vec_image_displayer_;
+    }
 signals:
-
+    void loadAImage(const QString& file_path);
 
 private:
     std::vector<ImageDisplayer> vec_image_displayer_;
@@ -107,10 +128,10 @@ private:
     QLabel* lable_file_path_;
     QGridLayout* image_display_layout_;
 
-    QBoxLayout* container_layout;
+    QBoxLayout* container_layout_;
 
     ErrorWindow* debug_window;
-
+    QString file_path_;
 };
 
 #endif // PAGEBASE_H

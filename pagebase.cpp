@@ -22,46 +22,40 @@ PageBase::PageBase(QWidget *parent)
     for(int i=0;i<4;++i)     image_display_layout_->addWidget(vec_image_displayer_[i].view_.get(),i/2,i%2);
 
     // container layout
-    container_layout = new QBoxLayout(QBoxLayout::Direction::LeftToRight);
-    center_layout->addLayout(container_layout);
+    container_layout_ = new QBoxLayout(QBoxLayout::Direction::TopToBottom);
+    center_layout->addLayout(container_layout_);
 
     // error display
     debug_window = new ErrorWindow(this);
 
     connect(button_open_file,&QPushButton::clicked,[&](){
-        QString file_path = file_loader_->getOpenFileName(this,"select an image",QDir::homePath(),tr("所有文件 (*.*);;图片文件(*.png,*.jpg)"));
-        qDebug() << "the selected path:" << file_path << Qt::endl;
-        if(file_path.isEmpty()){ // 报错
+        file_path_ = file_loader_->getOpenFileName(this,"select an image",QDir::homePath(),tr("所有文件 (*.*);;图片文件(*.png,*.jpg)"));
+        qDebug() << "the selected path:" << file_path_ << Qt::endl;
+        if(file_path_.isEmpty()){ // 报错
             *debug_window << "the path is empty";
             return;
         }
         static QRegularExpression regex(R"(\.(png|jpg|jpeg|bmp|gif|tiff|webp)$)",
                                             QRegularExpression::CaseInsensitiveOption);
-        if(!regex.match(file_path).hasMatch()){
+        if(!regex.match(file_path_).hasMatch()){
             *debug_window << "the path is empty";
             return;
         }
 
         // [TODO] read the file and display
-        lable_file_path_->setText(file_path);
+        lable_file_path_->setText(file_path_);
 
-        QPixmap pixmap(file_path);
+        QPixmap pixmap(file_path_);
         if (pixmap.isNull()) {
             *debug_window << "图片加载失败" ;
             return;
         }
-        vec_image_displayer_[0].setImage(QPixmap(file_path));
-        vec_image_displayer_[2].setImage(QPixmap(file_path));
 
-        // 2. 创建场景
-//        QGraphicsScene* scene = new QGraphicsScene(graphicsView);
+        // 加载图片
+        vec_image_displayer_[0].setImage(QPixmap(file_path_));
+        vec_image_displayer_[2].setImage(QPixmap(file_path_));
 
-//        // 3. 添加图片到场景
-//        QGraphicsPixmapItem* item = scene->addPixmap(pixmap);
-
-//        // 4. 设置场景到视图
-//        graphicsView->setScene(scene);
-
-        // 5. 可选：自动调整视图大小以适应图片
+        // 发射信号
+        emit loadAImage(file_path_);
     });
 }

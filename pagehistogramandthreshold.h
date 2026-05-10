@@ -13,6 +13,9 @@ signals:
 private:
 
     void setContainer();
+    void update();
+
+    QChart* chart;
 };
 
 #endif // PAGEHISTOGRAMANDTHRESHOLD_H

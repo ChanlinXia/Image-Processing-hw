@@ -12,6 +12,12 @@
 #include <QGraphicsView>
 #include <QTextEdit>
 
+#include <Eigen/Dense>
+//#include <opencv2/core/eigen.hpp>
+#include <opencv2/core.hpp>
+
+#include <QScrollBar>
+#include <QtCharts>
 #include <QPushButton>
 #include <QDebug>
 #include <QLabel>
