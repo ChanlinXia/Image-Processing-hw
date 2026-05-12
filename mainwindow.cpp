@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    this->resize(1000,1050);
     std::vector<QString> tasks_lists={
         "Histogram and Threshold",          // pdf3
         "Conclution and Image Filters",     // pdf4
@@ -18,8 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
         "Gray Morphological Function",    // pdf11
     };
 
-    auto page = new PageHistogramAndThreshold();
-    ui->tabWidget_task_tabs->addTab(page,"Histogram and Threshold");
+    // auto page = ;
+    ui->tabWidget_task_tabs->addTab(new PageHistogramAndThreshold(),"Histogram and Threshold");
     ui->tabWidget_task_tabs->addTab(new pageImageFilter(),"Image Filters");
 
 }

@@ -64,16 +64,34 @@ struct ImageDisplayer:public QObject{
     void setImage(const QPixmap& pixmap){
         scene_->clear();
         scene_->addPixmap(pixmap);
+        scene_->setSceneRect(pixmap.rect());
         view_->fitInView(scene_->sceneRect(), Qt::KeepAspectRatio);
     }
 
     void setImage(const cv::Mat& mat) {
         if (mat.empty()) return;
 
-        // generate the QImage
-        QImage img(mat.cols,mat.rows,QImage::Format_ARGB32);
+        cv::Mat displayMat;
+        QImage::Format format;
 
-        setImage(QPixmap::fromImage(img));
+        if (mat.channels() == 1) {
+            // 灰度图
+            format = QImage::Format_Grayscale8;
+            displayMat = mat;
+        } else if (mat.channels() == 3) {
+            // BGR 转 RGB
+            cv::cvtColor(mat, displayMat, cv::COLOR_BGR2RGB);
+            format = QImage::Format_RGB888;
+        } else {
+            return;  // 不支持的格式
+        }
+
+        QImage img(displayMat.data, displayMat.cols, displayMat.rows,
+                   displayMat.step, format);
+
+        // 必须拷贝，因为 displayMat 会在函数结束时销毁
+        QPixmap pixmap = QPixmap::fromImage(img.copy());
+        setImage(pixmap);
     }
 
     void setImage(const Eigen::MatrixXd& mat) {
@@ -132,6 +150,7 @@ private:
 
     ErrorWindow* debug_window;
     QString file_path_;
+
 };
 
 #endif // PAGEBASE_H
