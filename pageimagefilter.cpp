@@ -1,6 +1,7 @@
 #include "pageimagefilter.h"
 
-pageImageFilter::pageImageFilter()
+pageImageFilter::pageImageFilter(PageBase *parent)
+    : PageBase{parent}
 {
 
 }

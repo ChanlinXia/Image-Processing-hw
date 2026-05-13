@@ -7,6 +7,13 @@
 
 #include "sys.h"
 
+/*************************************************
+*   报警窗口
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
 struct ErrorWindow : QWidget
 {
     ErrorWindow(QWidget* parent = nullptr): QWidget(parent) {
@@ -42,6 +49,13 @@ private:
 //    std::shared_ptr<QTextEdit> text_edit_;
 };
 
+/*************************************************
+*   用于展示图片
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
 struct ImageDisplayer:public QObject{
     ImageDisplayer() {
         scene_ = std::make_unique<QGraphicsScene>();

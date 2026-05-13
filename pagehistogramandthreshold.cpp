@@ -8,7 +8,13 @@ PageHistogramAndThreshold::PageHistogramAndThreshold(PageBase *parent)
     // gray_histogram_ = std::make_unique<uint8_t []>(new uint8_t(256));
 }
 
-
+/*************************************************
+*   设置container里的控件
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
 void PageHistogramAndThreshold::setContainer(){
     auto container_layout = getContainerLayout();
     container_layout->setDirection(QBoxLayout::Direction::TopToBottom);
@@ -34,7 +40,7 @@ void PageHistogramAndThreshold::setContainer(){
 
     connect(reverse_button,&QPushButton::clicked,[&](){
         threshold_for_up_=!threshold_for_up_;
-        // updateChart();
+        updateChart();
         updateMask();
         updateOutputImage();
     });
@@ -58,6 +64,7 @@ void PageHistogramAndThreshold::setContainer(){
             updateThresholdLine();
             updateMask();
             updateOutputImage();
+            updateChart();
     });
 
     // PageBase *parentWidget = qobject_cast<PageBase*>(this->parent());
@@ -91,18 +98,31 @@ QChartView* PageHistogramAndThreshold::initTheChart(){
     chart = new QChart();
 
     // 1. 创建数据集
-    barSet = new QBarSet(QStringLiteral("intensity"));
+    above_threshold_set_ = new QBarSet(QStringLiteral());
+    below_threshold_set_ = new QBarSet(QStringLiteral());
     // QBarSet *set2 = new QBarSet("类别 B");
     for (int i = 0; i < 256; i++) {
-        *barSet << 0;
+        *above_threshold_set_ << 0;
+        *below_threshold_set_<< 0;
     }
+
+    // 设置样式
+    QColor Color = Qt::blue;
+    Color.setAlphaF(0.3);  // 30% 不透明度（半透明）
+    below_threshold_set_->setColor(Color);
+    Color.setAlphaF(1.0);
+    above_threshold_set_->setColor(Color);
 
     // 2. 创建柱状图系列并添加数据集
     QBarSeries* series = new QBarSeries();
-    series->append(barSet);
+    QBarSeries* series_below = new QBarSeries();
+
+    series_below->append(below_threshold_set_);
+    series->append(above_threshold_set_);
 
     // 3. 创建图表并添加系列
     chart = new QChart();
+    chart->addSeries(series_below);
     chart->addSeries(series);
     // chart->setTitle("柱状图示例");
     chart->setAnimationOptions(QChart::SeriesAnimations);
@@ -122,6 +142,8 @@ QChartView* PageHistogramAndThreshold::initTheChart(){
 
     chart->addAxis(axisX, Qt::AlignBottom);
     series->attachAxis(axisX);
+    series_below->attachAxis(axisX);
+
     qDebug() <<"init axisY" << Qt::endl;
 
     // 5. 创建Y轴
@@ -134,6 +156,8 @@ QChartView* PageHistogramAndThreshold::initTheChart(){
 
     chart->addAxis(axisY, Qt::AlignLeft);
     series->attachAxis(axisY);
+    series_below->attachAxis(axisY);
+
     chart->legend()->hide();
 
     double yMin = axisY ? axisY->min() : 0;
@@ -168,16 +192,41 @@ QChartView* PageHistogramAndThreshold::initTheChart(){
 **************************************************/
 void PageHistogramAndThreshold::updateChart(){
     // refresh the histogram
-    // barSet->remove(0,barSet->count());
+    // above_threshold_set_->remove(0,above_threshold_set_->count());
+    QColor Color = Qt::blue;
+    if(threshold_for_up_){
+        Color.setAlphaF(0.3);
+        above_threshold_set_->setColor(Color);
+        Color.setAlphaF(1.0);
+        below_threshold_set_->setColor(Color);
+    }
+    else{
+        Color.setAlphaF(0.3);
+        below_threshold_set_->setColor(Color);
+        Color.setAlphaF(1.0);
+        above_threshold_set_->setColor(Color);
+    }
+
+    above_threshold_set_->remove(0,above_threshold_set_->count());
+    below_threshold_set_->remove(0,below_threshold_set_->count());
+
     int maxCount = 0;
     for(int i =0;i<256;++i){
         if(gray_histogram_[i] > maxCount) maxCount = gray_histogram_[i];
-        barSet->replace(i, gray_histogram_[i]);
+        if( i > intensity_threshold_){
+            *above_threshold_set_ << gray_histogram_[i];
+            *below_threshold_set_ << 0;
+        }
+        else {
+            *below_threshold_set_ << gray_histogram_[i];
+            *above_threshold_set_ << 0;
+        }
+        // above_threshold_set_->replace(i, gray_histogram_[i]);
     }
 
     QValueAxis* axisY = qobject_cast<QValueAxis*>(chart->axes(Qt::Vertical).first());
     if (axisY) {
-        axisY->setRange(0, maxCount * 1.1);
+        axisY->setRange(0, static_cast<int>(maxCount * 1.1 + 0.5));
     }
 
     updateThresholdLine();
@@ -283,7 +332,7 @@ void PageHistogramAndThreshold::updateMask(){
                 if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 0;
                 else image_matrix_mask_(i,j) = 1;
             }
-            ++gray_histogram_[brightness];
+            // ++gray_histogram_[brightness];
         }
     }
 }

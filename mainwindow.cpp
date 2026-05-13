@@ -10,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     this->resize(1000,1050);
+    this->setWindowTitle("Digital Image Processing");
     std::vector<QString> tasks_lists={
         "Histogram and Threshold",          // pdf3
         "Conclution and Image Filters",     // pdf4

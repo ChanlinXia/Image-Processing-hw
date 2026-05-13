@@ -27,7 +27,9 @@ private:
 
     uint8_t intensity_threshold_ = 127;
     std::array<uint8_t, 256> gray_histogram_{};
-    QBarSet* barSet;
+    QBarSet* above_threshold_set_;
+    QBarSet* below_threshold_set_;
+
     QLineSeries* thresholdLineSeries;
 
     bool threshold_for_up_ = false;

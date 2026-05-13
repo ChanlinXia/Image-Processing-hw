@@ -6,7 +6,7 @@
 class pageImageFilter : public PageBase
 {
 public:
-    pageImageFilter();
+    explicit pageImageFilter(PageBase *parent = nullptr);
 };
 
 #endif // PAGEIMAGEFILTER_H
