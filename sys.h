@@ -28,11 +28,11 @@
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
 
-class PageBase;  // 前向声明
+// class PageBase;  // 前向声明
 
-#ifndef PAGEBASE_H
-    #include "pagebase.h"
-#endif
+// #ifndef PAGEBASE_H
+//     #include "pagebase.h"
+// #endif
 
 
 #endif // SYS_H

@@ -58,6 +58,7 @@ PageBase::PageBase(QWidget *parent)
             return;
         }
 
+        image_processer_.loadImage(file_path_);
 
         // 加载图片
         vec_image_displayer_[0].setImage(QPixmap(file_path_));

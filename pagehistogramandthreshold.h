@@ -1,7 +1,7 @@
 #ifndef PAGEHISTOGRAMANDTHRESHOLD_H
 #define PAGEHISTOGRAMANDTHRESHOLD_H
 
-#include "sys.h"
+#include "pagebase.h"
 
 class PageHistogramAndThreshold : public PageBase
 {
