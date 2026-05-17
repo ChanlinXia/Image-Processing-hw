@@ -69,7 +69,8 @@ void PageHistogramAndThreshold::setContainer(){
 
     // PageBase *parentWidget = qobject_cast<PageBase*>(this->parent());
     connect(this,&PageBase::loadAImage,[this](const QString& path){
-        image_mat_ = cv::imread(path.toStdString());
+        auto& image_container = getImageContainer();
+        image_mat_ = image_container.origin_image;
 
         int rows = image_mat_.rows;
         int cols = image_mat_.cols;
@@ -321,20 +322,8 @@ void PageHistogramAndThreshold::calcIntensity(){
 *   @author Chanlin
 **************************************************/
 void PageHistogramAndThreshold::updateMask(){
-    for(int i = 0;i<image_mat_.rows;++i){
-        for(int j=0;j<image_mat_.cols;++j){
-            auto brightness = image_matrix_(i,j);
-            if(threshold_for_up_){
-                if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 1;
-                else image_matrix_mask_(i,j) = 0;
-            }
-            else{
-                if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 0;
-                else image_matrix_mask_(i,j) = 1;
-            }
-            // ++gray_histogram_[brightness];
-        }
-    }
+    auto& image_processer = getImageProcessor();
+    image_processer.threshold(getImageContainer().gray_matrix,intensity_threshold_,image_matrix_mask_,threshold_for_up_);
 }
 
 /*************************************************
@@ -347,23 +336,11 @@ void PageHistogramAndThreshold::updateMask(){
 void PageHistogramAndThreshold::updateOutputImage(){
     if(image_mat_.rows == 0 || image_matrix_.rows()==0) return ;
     // 更新右上角的，通过cv pipeline
-        // qDebug() << "start to gray" << Qt::endl;
-    cv::Mat gray_image;
-    cv::cvtColor(image_mat_,gray_image,cv::COLOR_BGR2GRAY);
-
-        // qDebug() << "start to hist" << Qt::endl;
-    int histSize = 256;
-    float range[] = {0, 256};
-    const float* histRange = {range};
-    cv::Mat hist;
-    cv::calcHist(&gray_image, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
-
-        // qDebug() << "start to mask" << Qt::endl;
     cv::Mat mask;
-    if(threshold_for_up_) cv::threshold(gray_image, mask, intensity_threshold_, 255, cv::THRESH_TOZERO_INV);
-    else cv::threshold(gray_image, mask, intensity_threshold_, 255, cv::THRESH_TOZERO);
 
-        // qDebug() << "start to result" << Qt::endl;
+    auto& image_processer = getImageProcessor();
+    image_processer.threshold(getImageContainer().origin_image,intensity_threshold_,mask,threshold_for_up_);
+
     cv::Mat result;
     result = cv::Mat::zeros(image_mat_.size(), image_mat_.type());
     image_mat_.copyTo(result, mask);

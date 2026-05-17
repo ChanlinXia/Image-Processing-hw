@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "pagehistogramandthreshold.h"
 #include "pageimagefilter.h"
+#include "pagebinaryoperation.h"
 #include "./ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -23,6 +24,8 @@ MainWindow::MainWindow(QWidget *parent)
     // auto page = ;
     ui->tabWidget_task_tabs->addTab(new PageHistogramAndThreshold(),"Histogram and Threshold");
     ui->tabWidget_task_tabs->addTab(new pageImageFilter(),"Image Filters");
+    ui->tabWidget_task_tabs->addTab(new pageBinaryOperation(),"Binary Operation");
+
 
 }
 

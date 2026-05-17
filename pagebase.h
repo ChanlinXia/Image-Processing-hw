@@ -8,6 +8,116 @@
 #include "imageprocesser.h"
 
 /*************************************************
+*   用于存储图片
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+struct ImageContainer{
+    cv::Mat origin_image;
+
+    grayEigen gray_matrix;
+    intensityEigen intensity_matrix;
+    intensityEigen intensity_matrix_r;
+    intensityEigen intensity_matrix_b;
+    intensityEigen intensity_matrix_g;
+
+    bool is_color;
+    int rows_;
+    int cols_;
+
+    ImageContainer():
+        is_color(false),
+        rows_(0),
+        cols_(0){};
+
+    bool loadImage(const QString& path){
+        origin_image=cv::imread(path.toStdString());
+
+        if(origin_image.rows == 0) return false;
+
+        if(origin_image.channels() == 3) is_color = true;
+        else is_color = false;
+
+        rows_ = origin_image.rows;
+        cols_ = origin_image.cols;
+        intensity_matrix.resize(rows_,cols_);
+        gray_matrix.resize(rows_,cols_);
+        if(is_color){
+            intensity_matrix_r.resize(rows_,cols_);
+            intensity_matrix_g.resize(rows_,cols_);
+            intensity_matrix_b.resize(rows_,cols_);
+        }
+
+        calcIntensity();
+        return true;
+    }
+
+    void calcIntensity(){
+        // if(intensity_matrix.)
+        std::function<double(int,int)> calcPixelIntensity;  // 声明一个可调用对象
+        if(is_color){ // three channel bgr default
+            if(origin_image.type() == CV_8UC3){ // bgr8
+                calcPixelIntensity = [this](int x,int y)->double{
+                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
+                    return (0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5);
+                };
+
+            }
+            else if(origin_image.type() == CV_16UC3 ){ // bgr16
+                calcPixelIntensity = [this](int x,int y)->double{
+                    cv::Vec3w pixel = origin_image.at<cv::Vec3w>(y, x);  // (行, 列)
+                    return (255 *
+                            (0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5)
+                                                    / 65535.0+0.5);
+                };
+            }
+            else{
+                calcPixelIntensity = [this](int x,int y)->double{
+                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
+                    return ((0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2])*255+0.5);
+                };
+            }
+        }
+        else if(origin_image.channels() == 1){
+            // calcPixelIntensity = [this](int x,int y)->double{
+            //     // cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
+            //     return origin_image.at<uint8_t>(y,x);
+            // };
+
+            for(int i = 0;i<origin_image.rows;++i){
+                for(int j=0;j<origin_image.cols;++j){
+                    // auto intensity = calcPixelIntensity(j,i);
+                    // intensity_matrix(i,j) = intensity;
+                    gray_matrix(i,j) = origin_image.at<uint8_t>(i,j);
+                }
+            }
+            return;
+        }
+        else{
+            return;
+        }
+
+        for(int i = 0;i<origin_image.rows;++i){
+            for(int j=0;j<origin_image.cols;++j){
+                auto intensity = calcPixelIntensity(j,i);
+                intensity_matrix(i,j) = intensity;
+                gray_matrix(i,j) = static_cast<uint8_t> (intensity);
+
+                if(is_color){
+                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(i, j);
+
+                    intensity_matrix_b(i,j) = pixel[0];
+                    intensity_matrix_g(i,j) = pixel[1];
+                    intensity_matrix_r(i,j) = pixel[2];
+                }
+            }
+        }
+    }
+};
+
+/*************************************************
 *   报警窗口
 *
 *   @param  void
@@ -143,8 +253,41 @@ public:
         // delete [] &vec_image_displayer_;
     }
 
+    bool loadImage(const QString& path){
+        bool ok = image_container_.loadImage(path);
+        if(ok){
+            int rows = image_container_.rows_;
+            int cols = image_container_.cols_;
+            result_cv_= cv::Mat::zeros(rows,cols,CV_8UC1);
+            result_eigen_mat_=cv::Mat::zeros(rows,cols,CV_8UC1);
+            // result_eigen_.resize(rows,cols);
+            result_eigen_=grayEigen::Zero(rows,cols);
+        }
+        return ok;
+        // return image_container_.loadImage(path);
+    }
+
+    cv::Mat& getResultCV(){
+        return result_cv_;
+    }
+
+
+    void setEigenRlt(){
+        cv::eigen2cv(result_eigen_,result_eigen_mat_);
+    }
+
+    grayEigen& getResultEigen(){
+        // cv::imshow("get result eigen before set", result_eigen_mat_);
+        // cv::waitKey(1);  // 非阻塞，允许刷新
+        return result_eigen_;
+    }
+
     QBoxLayout* getContainerLayout(){
         return container_layout_;
+    }
+
+    ImageContainer& getImageContainer(){
+        return image_container_;
     }
 
     std::vector<ImageDisplayer>& getImageDisplayer(){
@@ -155,15 +298,25 @@ public:
         return image_processer_;
     }
 
+    void debug(const QString& error_info){
+        *debug_window << error_info;
+    }
+
     void updateOutputImage(){
-        vec_image_displayer_[1].setImage(image_processer_.getResultCV());
-        vec_image_displayer_[3].setImage(image_processer_.getResultEigen());
+        vec_image_displayer_[1].setImage(result_cv_);
+        vec_image_displayer_[3].setImage(result_eigen_mat_);
     }
 
 signals:
     void loadAImage(const QString& file_path);
 
 private:
+    ImageContainer image_container_{};
+
+    cv::Mat result_cv_;
+    cv::Mat result_eigen_mat_;
+    grayEigen result_eigen_;
+
     std::vector<ImageDisplayer> vec_image_displayer_;
     QFileDialog* file_loader_;
     QLabel* lable_file_path_;

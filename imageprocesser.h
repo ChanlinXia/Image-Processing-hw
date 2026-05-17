@@ -3,155 +3,172 @@
 
 #include "sys.h"
 
-enum class KERNEL_TYPE{Roberts,Prewitt,Sobel,Gaussian,Median};
-enum class CONVOL_DIR{Vertical,Horizontal,Both};
-
 using grayEigen = Eigen::Matrix<uchar,Eigen::Dynamic,Eigen::Dynamic>;
-/*************************************************
-*   用于存储图片
-*
-*   @param  void
-*   @return void
-*   @author Chanlin
-**************************************************/
-struct ImageContainer{
-    cv::Mat origin_image;
-    Eigen::Matrix<uchar,Eigen::Dynamic,Eigen::Dynamic> intensity_matrix;
-    Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> r_channel_matrix;
-    Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> b_channel_matrix;
-    Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> g_channel_matrix;
-    bool is_color;
-    int rows_;
-    int cols_;
+using intensityEigen = Eigen::MatrixXd;
 
-    ImageContainer():
-        is_color(false),
-        rows_(0),
-        cols_(0){};
+// 定义 traits 模板
+template<typename T>
+struct ImageTraits;
 
-    bool loadImage(const QString& path){
-        origin_image=cv::imread(path.toStdString());
-
-        if(origin_image.rows == 0) return false;
-
-        if(origin_image.channels() == 3) is_color = true;
-        else is_color = false;
-
-        rows_ = origin_image.rows;
-        cols_ = origin_image.cols;
-        intensity_matrix.resize(rows_,cols_);
-        if(is_color){
-            r_channel_matrix.resize(rows_,cols_);
-            b_channel_matrix.resize(rows_,cols_);
-            g_channel_matrix.resize(rows_,cols_);
+// cv::Mat
+template<>
+struct ImageTraits<cv::Mat> {
+    static int rows(const cv::Mat& img) { return img.rows; }
+    static int cols(const cv::Mat& img) { return img.cols; }
+    static void setValue(cv::Mat& mat,int row,int col,double value){
+        if(mat.type() == CV_64F){
+            mat.at<double>(row,col) = value;
         }
-
-        calcIntensity();
-        return true;
-    }
-
-    void calcIntensity(){
-        // if(intensity_matrix.)
-        std::function<uint8_t(int,int)> calcPixelIntensity;  // 声明一个可调用对象
-        if(is_color){ // three channel bgr default
-            if(origin_image.type() == CV_8UC3){ // bgr8
-                calcPixelIntensity = [this](int x,int y)->uint8_t{
-                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
-                    return static_cast<uint8_t>(0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5);
-                };
-            }
-            else if(origin_image.type() == CV_16UC3 ){ // bgr16
-                calcPixelIntensity = [this](int x,int y)->uint8_t{
-                    cv::Vec3w pixel = origin_image.at<cv::Vec3w>(y, x);  // (行, 列)
-                    return static_cast<uint8_t>(255 *
-                                                    (0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5)
-                                                    / 65535.0+0.5);
-                };
-            }
-            else{
-                calcPixelIntensity = [this](int x,int y)->uint8_t{
-                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
-                    return static_cast<uint8_t>((0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2])*255+0.5);
-                };
-            }
+        else if(mat.type() == CV_32F){
+            mat.at<float>(row,col) = static_cast<float>(value);
         }
-        else if(origin_image.channels() == 1){
-            calcPixelIntensity = [this](int x,int y)->uint8_t{
-                // cv::Vec3b pixel = origin_image.at<cv::Vec3b>(y, x);  // (行, 列)
-                return origin_image.at<uint8_t>(y,x);
-            };
+        else if(mat.type() == CV_8U){
+            mat.at<uchar>(row, col) = static_cast<uchar>(value);
         }
         else{
             return;
         }
+    }
 
-        for(int i = 0;i<origin_image.rows;++i){
-            for(int j=0;j<origin_image.cols;++j){
-                auto brightness = calcPixelIntensity(j,i);
-                intensity_matrix(i,j) = brightness;
-            }
+    static double getValue(const cv::Mat& mat, int row, int col) {
+        if (mat.type() == CV_64F) {
+            return mat.at<double>(row, col);
+        } else if (mat.type() == CV_32F) {
+            return mat.at<float>(row, col);
+        } else if (mat.type() == CV_8U) {
+            return mat.at<uchar>(row, col);
         }
+        else{
+            return 0.0;
+        }
+        return 0.0;
+    }
 
-        if(is_color){
-            for(int i = 0;i<origin_image.rows;++i){
-                for(int j=0;j<origin_image.cols;++j){
-                    cv::Vec3b pixel = origin_image.at<cv::Vec3b>(i, j);
-                    // auto brightness = calcPixelIntensity(j,i);
-                    b_channel_matrix(i,j) = pixel[0];
-                    g_channel_matrix(i,j) = pixel[1];
-                    r_channel_matrix(i,j) = pixel[2];
-                }
-            }
-        }
+    static void setZero(cv::Mat& mat,int rows,int cols,int type){
+        mat = cv::Mat::zeros(rows,cols,type);
     }
 };
 
+// Eigen::MatrixXd
+template<>
+struct ImageTraits<intensityEigen> {
+    static int rows(const intensityEigen& img) { return img.rows(); }
+    static int cols(const intensityEigen& img) { return img.cols(); }
+
+    static void setValue(intensityEigen& matrix,int row,int col,double value){
+        matrix(row,col) = value;
+    }
+
+    static double getValue(intensityEigen& matrix,int row,int col){
+        return matrix(row,col);
+    }
+
+    static void setZero(intensityEigen& matrix,int rows,int cols,int type =0){
+        matrix =intensityEigen::Zero(rows,cols);
+    }
+};
+
+// grayEigen
+template<>
+struct ImageTraits<grayEigen> {
+    static int rows(const grayEigen& img) { return img.rows(); }
+    static int cols(const grayEigen& img) { return img.cols(); }
+
+    static void setValue(grayEigen& matrix,int row,int col,uchar value){
+        matrix(row,col) = value;
+    }
+
+    static uchar getValue(grayEigen& matrix,int row,int col){
+        return matrix(row,col);
+    }
+
+    static void setZero(grayEigen& matrix,int rows,int cols,int type =0){
+        matrix =grayEigen::Zero(rows,cols);
+    }
+};
 
 class ImageProcesser
 {
 public:
     ImageProcesser();
 
-    bool loadImage(const QString& path){
-        bool ok = image_container_.loadImage(path);
-        if(ok){
-            int rows = image_container_.rows_;
-            int cols = image_container_.cols_;
-            result_cv_= cv::Mat::zeros(rows,cols,CV_8UC1);
-            result_eigen_mat_=cv::Mat::zeros(rows,cols,CV_8UC1);
-            result_eigen_.resize(rows,cols);
-            // result_eigen_=grayEigen::Zero(rows,cols);
+    // threshold
+    const QString threshold(cv::Mat& image,int threshold,cv::Mat& mask,bool is_upper=true) const;
+    const QString threshold(grayEigen& image,int threshold,grayEigen& mask,bool is_upper=true) const;
+
+    // convolution
+    const QString convolution(cv::Mat& image,cv::Mat& kernel) const;
+    const QString convolution(cv::Mat& image,cv::Mat& kernel,cv::Mat& rlt) const;
+    const QString convolution(intensityEigen& image,intensityEigen& kernel,grayEigen& rlt) const;
+
+    // filter
+    const QString medianFilter(intensityEigen& image,int kernel_size,grayEigen& rlt) const;
+    const QString medianFilter(cv::Mat& image,int kernel_size,cv::Mat& rlt) const;
+
+    template<typename T>
+    void geneGaussionKernel(T& kernel,int kernel_size){
+        double sigma =0.0;
+        if(kernel_size % 2 == 0) kernel_size++;
+
+        // 如果没有指定 sigma，使用默认值
+        if(sigma <= 0) {
+            sigma = 0.3 * ((kernel_size - 1) * 0.5 - 1) + 0.8;
         }
-        return ok;
-        // return image_container_.loadImage(path);
+
+        // cv::Mat kernel(kernel_size, kernel_size, CV_64F);
+        int center = kernel_size / 2;
+        double sum = 0.0;
+        double sigma2 = sigma * sigma;
+        double sigma2pi = 2 * M_PI * sigma2;
+
+        for(int i = 0; i < kernel_size; i++) {
+            for(int j = 0; j < kernel_size; j++) {
+                int x = i - center;
+                int y = j - center;
+
+                // 高斯函数公式
+                double value = exp(-(x*x + y*y) / (2 * sigma2)) / sigma2pi;
+                ImageTraits<T>::setValue(kernel,i,j,value);
+                // kernel.at<double>(i, j) = value;
+                sum += value;
+            }
+        }
+        // 归一化
+        kernel = kernel / sum;
     }
 
-    const QString convolution(KERNEL_TYPE kernel,int kernel_size,CONVOL_DIR dir);
-    // cv::Mat& getResultCV();
+    template<typename T,typename rltT>
+    const QString norm(T& image1,T& image2,rltT& rlt) const{
+        int rows1 = ImageTraits<T>::rows(image1);
+        int cols1 = ImageTraits<T>::cols(image1);
 
-    cv::Mat& getResultCV(){
-        return result_cv_;
+        int rows2 = ImageTraits<T>::rows(image2);
+        int cols2 = ImageTraits<T>::cols(image2);
+
+        if(rows1!=rows2 || cols1!=cols2) return "the size of the two image does not match";
+        ImageTraits<rltT>::setZero(rlt,rows1,cols2,CV_8UC1);
+
+        for(int i=0;i<rows1;++i){
+            for(int j=0;j<cols1;++j){
+                auto value1 = ImageTraits<T>::getValue(image1,i,j);
+                auto value2 = ImageTraits<T>::getValue(image2,i,j);
+
+                auto norm_val = sqrt(value1*value1+value2*value2) ;
+
+                ImageTraits<rltT>::setValue(rlt,i,j,static_cast<uchar>(norm_val));
+            }
+        }
+
+        return "ok";
     }
 
-    cv::Mat& getResultEigen(){
-        // cv::imshow("get result eigen before set", result_eigen_mat_);
-        // cv::waitKey(1);  // 非阻塞，允许刷新
-        return result_eigen_mat_;
-    }
 
 
 private:
-    ImageContainer image_container_{};
-    cv::Mat result_cv_;
-    cv::Mat result_eigen_mat_;
-    grayEigen result_eigen_;
+    void getGray(cv::Mat& image,cv::Mat& gray) const;
 
-    void eigenToCV();
-    const QString mat_convolution(Eigen::MatrixXd& kernel);
-    void cv_convolution(cv::Mat& kernel);
-
-
-    void medianFiler();
+    template<typename T>
+    void combine(T& image1,T& image2);
 };
 
 #endif // IMAGEPROCESSER_H
