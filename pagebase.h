@@ -16,6 +16,7 @@
 **************************************************/
 struct ImageContainer{
     cv::Mat origin_image;
+    // cv::Mat gray_image;
 
     grayEigen gray_matrix;
     intensityEigen intensity_matrix;
@@ -39,7 +40,7 @@ struct ImageContainer{
 
         if(origin_image.channels() == 3) is_color = true;
         else is_color = false;
-
+        // cv::cvtColor(origin_image,gray_image,cv::COLOR_BGR2GRAY);
         rows_ = origin_image.rows;
         cols_ = origin_image.cols;
         intensity_matrix.resize(rows_,cols_);
@@ -221,11 +222,27 @@ struct ImageDisplayer:public QObject{
     void setImage(const Eigen::MatrixXd& mat) {
         if (mat.rows() == 0 || mat.cols() == 0) return;
 
+        cv::Mat rlt;
+        cv::eigen2cv(mat,rlt);
+        setImage(rlt);
         // generate the QImage
 //        cv::eigen2cv(&mat,mat.rows(),mat.cols());
 //        QImage img(static_cast<uchar*>(mat.data()),mat.cols(),mat.rows(),QImage::Format_ARGB32);
 
 //        setImage(QPixmap::fromImage(img));
+    }
+
+    void setImage(const grayEigen& mat) {
+        if (mat.rows() == 0 || mat.cols() == 0) return;
+
+        cv::Mat rlt;
+        cv::eigen2cv(mat,rlt);
+        setImage(rlt);
+        // generate the QImage
+        //        cv::eigen2cv(&mat,mat.rows(),mat.cols());
+        //        QImage img(static_cast<uchar*>(mat.data()),mat.cols(),mat.rows(),QImage::Format_ARGB32);
+
+        //        setImage(QPixmap::fromImage(img));
     }
 
     bool eventFilter(QObject* obj, QEvent* event) override {
@@ -247,7 +264,7 @@ class PageBase : public QWidget
 {
     Q_OBJECT
 public:
-    explicit PageBase(QWidget *parent = nullptr);
+    explicit PageBase(QWidget *parent = nullptr,bool show_original_image =true);
     ~PageBase(){
         // delete [] &file_path_;
         // delete [] &vec_image_displayer_;
@@ -303,10 +320,18 @@ public:
     }
 
     void updateOutputImage(){
+        cv::eigen2cv(result_eigen_,result_eigen_mat_);
         vec_image_displayer_[1].setImage(result_cv_);
         vec_image_displayer_[3].setImage(result_eigen_mat_);
     }
 
+    template<typename T>
+    void displayImage(const T& image,int row,int col){
+        // std::cout << "setImage in pagebase" << std::endl;
+        vec_image_displayer_[2*row+col].setImage(image);
+    }
+
+    bool show_original_iamge_;
 signals:
     void loadAImage(const QString& file_path);
 

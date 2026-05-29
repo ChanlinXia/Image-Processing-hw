@@ -14,11 +14,11 @@ private:
 
     void setContainer();
     void updateChart();
-    void calcIntensity();
+    // void calcIntensity();
     QChartView* initTheChart();
     void updateThresholdLine();
     void updateMask();
-    void updateOutputImage();
+    // void updateOutputImage();
 
     QChart* chart;
     cv::Mat image_mat_;

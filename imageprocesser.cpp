@@ -20,7 +20,6 @@ const QString ImageProcesser::convolution(cv::Mat& image,cv::Mat& kernel,cv::Mat
     getGray(image,gray_origin);
 
     cv::cvtColor(image,gray_origin,cv::COLOR_RGB2GRAY);
-    // std::cout << "Image size: " << gray_origin.size() << std::endl;
     cv::Mat result_float;
     cv::filter2D(gray_origin, result_float, CV_32F, kernel);
     // cv::normalize(result_float, result_cv_, 0, 255, cv::NORM_MINMAX);
@@ -217,20 +216,21 @@ const QString ImageProcesser::threshold(cv::Mat& image,int thershold,cv::Mat& ma
     int rows = image.rows;
     int cols = image.cols;
     if( rows == 0 || cols==0) return "[ImgaeProcesser][threshold-cv] the image is empty";
-    mask= cv::Mat::zeros(rows,cols,CV_8UC1);
+    if(mask.empty())    mask= cv::Mat::zeros(rows,cols,CV_8UC1);
+
     cv::Mat gray_image;
     getGray(image,gray_image);
 
     // qDebug() << "start to hist" << Qt::endl;
-    int histSize = 256;
-    float range[] = {0, 256};
-    const float* histRange = {range};
-    cv::Mat hist;
-    cv::calcHist(&gray_image, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
+    // int histSize = 256;
+    // float range[] = {0, 256};
+    // const float* histRange = {range};
+    // cv::Mat hist;
+    // cv::calcHist(&gray_image, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
 
     // qDebug() << "start to mask" << Qt::endl;
-    if( is_upper) cv::threshold(gray_image, mask, thershold, 255, cv::THRESH_TOZERO_INV);
-    else cv::threshold(gray_image, mask, thershold, 255, cv::THRESH_TOZERO);
+    if( is_upper) cv::threshold(gray_image, mask, thershold, 255, cv::THRESH_BINARY_INV);
+    else cv::threshold(gray_image, mask, thershold, 255, cv::THRESH_BINARY);
 
     return "ok";
 }
@@ -247,16 +247,18 @@ const QString ImageProcesser::threshold(grayEigen& image,int threshold,grayEigen
     int cols = image.cols();
     if( rows == 0) return "[ImgaeProcesser][threshold-Eigen] the image is empty";
 
+    if(mask.rows() != rows || mask.cols() != cols)     mask = grayEigen::Zero(rows,cols);
+
     for(int i=0;i<rows;++i){
         for(int j=0;j<cols;++j){
             auto brightness = image(i,j);
             if(is_upper){
-                if(brightness <= threshold)mask(i,j) = 1;
-                else mask(i,j) = 0;
+                if(brightness <= threshold)mask(i,j) = BINARY_ONE;
+                else mask(i,j) = BINARY_ZERO;
             }
             else{
-                if(brightness <= threshold)mask(i,j) = 0;
-                else mask(i,j) = 1;
+                if(brightness <= threshold)mask(i,j) = BINARY_ZERO;
+                else mask(i,j) = BINARY_ONE;
             }
         }
     }
@@ -264,55 +266,392 @@ const QString ImageProcesser::threshold(grayEigen& image,int threshold,grayEigen
     return "ok";
 }
 
+/*************************************************
+*   获取SE cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::genSEKernel(cv::Mat& kernel,SE_TYPE se_type,int kernel_size)const{
+    int center = kernel_size / 2;
+    cv::Point centerPoint(center, center);
+    switch(se_type){
+    case ImageProcesser::SE_TYPE::Rect:
+        kernel = cv::Mat::ones(kernel_size, kernel_size, CV_8U) ;
+        break;
+    case ImageProcesser::SE_TYPE::Cross:
+        kernel = cv::Mat::zeros(kernel_size, kernel_size, CV_8U);
 
-
-
-template<typename T>
-void ImageProcesser::combine(T& image1,T& image2){
-
-    if constexpr (std::is_same_v<T, cv::Mat>) {// cv::Mat
-        int rows = image1.rows;
-        int cols = image1.cols;
-
-        // 假设 image1 和 image2 是 CV_8U 类型（0-255）
-        cv::Mat magnitude(rows, cols, CV_8U);
-
-        for(int i = 0; i < rows; ++i) {
-            const uchar* gx_row = image1.ptr<uchar>(i);
-            const uchar* gy_row = image2.ptr<uchar>(i);
-            uchar* mag_row = magnitude.ptr<uchar>(i);
-
-            for(int j = 0; j < cols; ++j) {
-                // 注意：uchar 类型需要提升到 int 避免溢出
-                int gx = gx_row[j];
-                int gy = gy_row[j];
-                double val = std::sqrt(gx*gx + gy*gy);
-                mag_row[j] = val > 255 ? 255 : static_cast<uchar>(val);
+        // 中心行和中心列设为1
+        kernel.row(center).setTo(1);  // 或者用 1，根据你的数据类型
+        kernel.col(center).setTo(1);
+        break;
+    case ImageProcesser::SE_TYPE::Ellipse:
+    // case ImageProcesser::SE_TYPE::Ellipse:
+        // 椭圆形/圆形核
+        kernel = cv::Mat::zeros(kernel_size, kernel_size, CV_8U);
+        cv::circle(kernel, centerPoint, center, cv::Scalar(255), -1);  // -1 表示填充
+        break;
+    case ImageProcesser::SE_TYPE::Specific:
+        kernel = cv::Mat::zeros(kernel_size, kernel_size, CV_8U);
+        // int center = kernel_size / 2;
+        for (int i = 0; i < kernel_size; i++) {
+            for (int j = 0; j < kernel_size; j++) {
+                if (abs(i - center) + abs(j - center) <= center) {
+                    kernel.at<uchar>(i, j) = 255;
+                }
             }
         }
 
-        // result_cv_ = magnitude.clone();
-
-        // cv::Mat result;
-        // cv::magnitude(image1, image2, result);
-
-        // cv::normalize(result, result_cv_, 0, 255, cv::NORM_MINMAX);
-        // result.convertTo(result, CV_8UC1);
-
+        break;
+    default: qDebug() << "please input a correct kernel type" <<Qt::endl;
+        break;
     }
-    else if constexpr(std::is_same_v<T, grayEigen>){  // Eigen::Matrix
-
-        grayEigen result = (image1.array().square() + image2.array().square()).sqrt();
-
-        auto min_val = result.minCoeff();
-        auto max_val = result.maxCoeff();
-
-        // 归一化到 [0, 1] 范围
-        // result_eigen_ = (result.array() - min_val) / (max_val - min_val);
-
-        // result_eigen_ = (normalized * 255.0).array().cast<uchar>();
-    }
+    return "ok";
 }
 
+/*************************************************
+*   获取se Eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::genSEKernel(grayEigen& kernel,SE_TYPE se_type,int kernel_size)const{
+    kernel = grayEigen::Zero(kernel_size, kernel_size);
+    switch(se_type) {
+    case ImageProcesser::SE_TYPE::Rect: {
+        kernel.setConstant(1);  // 全设为1
+        break;
+    }
+    case ImageProcesser::SE_TYPE::Cross: {
+        kernel.setZero();
+        int center = kernel_size / 2;
+        kernel.row(center).setConstant(1);
+        kernel.col(center).setConstant(1);
+        break;
+    }
+    case ImageProcesser::SE_TYPE::Ellipse: {
+        kernel.setZero();
+        int center = kernel_size / 2;
+        int radius = kernel_size / 2;
+        int radius_sq = radius * radius;
 
+        for (int i = 0; i < kernel_size; i++) {
+            for (int j = 0; j < kernel_size; j++) {
+                int dx = i - center;
+                int dy = j - center;
+                if (dx * dx + dy * dy <= radius_sq) {
+                    kernel(i, j) = 1;
+                }
+            }
+        }
+        break;
+    }
+    case ImageProcesser::SE_TYPE::Specific: {
+        kernel.setZero();
+        int center = kernel_size / 2;
+        for (int i = 0; i < kernel_size; i++) {
+            for (int j = 0; j < kernel_size; j++) {
+                if (abs(i - center) + abs(j - center) <= center) {
+                    kernel(i, j) = 1;
+                }
+            }
+        }
+        break;
+    }
+    default:
+        qDebug() << "please input a correct kernel type" << Qt::endl;
+        kernel.setConstant(1);
+        break;
+    }
+    return "ok";
+}
 
+/*************************************************
+*   计算膨胀 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalDilation(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt)const{
+    cv::dilate(image, rlt, se);
+    return "ok";
+}
+
+/*************************************************
+*   计算膨胀 Eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalDilation(grayEigen& image,const grayEigen& se,grayEigen& rlt)const{
+
+    if (image.size() == 0) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.size() == 0) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    // 获取图像尺寸
+    int rows = image.rows();
+    int cols = image.cols();
+
+    // 获取结构元素尺寸
+    int se_rows = se.rows();
+    int se_cols = se.cols();
+
+    // 计算锚点（中心点）
+    int anchor_y = se_rows / 2;
+    int anchor_x = se_cols / 2;
+
+    // 初始化结果矩阵（全0，与输入同尺寸）
+    // rlt.resize(rows, cols);
+    // rlt.setZero();
+
+    // 遍历图像每个像素
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            // 当前像素邻域的最大值
+            uchar max_val = 0;
+
+            // 遍历结构元素
+            for (int m = 0; m < se_rows; m++) {
+                for (int n = 0; n < se_cols; n++) {
+                    // 如果结构元素在该位置有效（非0）
+                    if (se(m, n) != 0) {
+                        // 计算对应图像上的坐标
+                        int img_i = i + (m - anchor_y);
+                        int img_j = j + (n - anchor_x);
+
+                        // 边界检查（超出边界的像素视为0）
+                        if (img_i >= 0 && img_i < rows && img_j >= 0 && img_j < cols) {
+                            uchar val = image(img_i, img_j);
+                            if (val > max_val) {
+                                max_val = val;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 将最大值赋给结果
+            rlt(i, j) = max_val;
+        }
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   计算腐蚀 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalErosion(cv::Mat& image, const cv::Mat& se, cv::Mat& rlt) const {
+    if (image.empty()) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.empty()) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    // 使用 OpenCV 内置函数
+    cv::erode(image, rlt, se);
+
+    return "ok";
+}
+
+/*************************************************
+*   计算腐蚀 Eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+    if (image.size() == 0) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.size() == 0) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    int rows = image.rows();
+    int cols = image.cols();
+    int se_rows = se.rows();
+    int se_cols = se.cols();
+    int anchor_y = se_rows / 2;
+    int anchor_x = se_cols / 2;
+
+    // 收集结构元素的有效偏移
+    std::vector<std::pair<int, int>> offsets;
+    for (int m = 0; m < se_rows; m++) {
+        for (int n = 0; n < se_cols; n++) {
+            if (se(m, n) != 0) {
+                offsets.push_back({m - anchor_y, n - anchor_x});
+            }
+        }
+    }
+
+    // 初始化结果矩阵（全0）
+    rlt.resize(rows, cols);
+    rlt.setZero();
+
+    // 遍历每个像素
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            bool all_foreground = true;
+
+            // 检查结构元素覆盖的所有位置是否都是前景
+            for (const auto& offset : offsets) {
+                int img_i = i + offset.first;
+                int img_j = j + offset.second;
+
+                // 边界检查（超出边界的视为背景）
+                if (img_i < 0 || img_i >= rows || img_j < 0 || img_j >= cols) {
+                    all_foreground = false;
+                    break;
+                }
+
+                if (image(img_i, img_j) == 0) {  // 遇到背景
+                    all_foreground = false;
+                    break;
+                }
+            }
+
+            // 只有完全被结构元素覆盖且所有对应位置都是前景，结果才为前景
+            rlt(i, j) = all_foreground ? 255 : 0;
+        }
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   开运算 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalOepning(cv::Mat& image, const cv::Mat& se, cv::Mat& rlt) const {
+    if (image.empty()) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.empty()) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    // 方法1：使用 OpenCV 内置函数
+    cv::morphologyEx(image, rlt, cv::MORPH_OPEN, se);
+
+    // 方法2：手动实现（注释掉，使用内置函数更快）
+    // cv::Mat temp;
+    // cv::erode(image, temp, se);
+    // cv::dilate(temp, rlt, se);
+
+    return "ok";
+}
+
+/*************************************************
+*   开运算
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalOepning(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+    if (image.size() == 0) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.size() == 0) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    // 先腐蚀
+    grayEigen temp;
+    QString result = morphologicalErosion(image, se, temp);
+    if (result != "ok") {
+        return result;
+    }
+
+    // 再膨胀
+    result = morphologicalDilation(temp, se, rlt);
+
+    return result;
+}
+
+/*************************************************
+*   闭运算 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalClosing(cv::Mat& image, const cv::Mat& se, cv::Mat& rlt) const {
+    if (image.empty()) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.empty()) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    cv::morphologyEx(image, rlt, cv::MORPH_CLOSE, se);
+    return "ok";
+}
+
+/*************************************************
+*   闭运算 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalClosing(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+    if (image.size() == 0) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.size() == 0) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
+
+    // 先膨胀
+    grayEigen temp = grayEigen::Zero(image.rows(),image.cols());
+    QString result = morphologicalDilation(image, se, temp);
+    if (result != "ok") {
+        return result;
+    }
+
+    // 再腐蚀
+    result = morphologicalErosion(temp, se, rlt);
+
+    return result;
+}

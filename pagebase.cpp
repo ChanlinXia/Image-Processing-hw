@@ -1,7 +1,8 @@
 #include "pagebase.h"
 
-PageBase::PageBase(QWidget *parent)
+PageBase::PageBase(QWidget *parent,bool show_original_image)
     : QWidget{parent}
+    , show_original_iamge_(show_original_image)
     , vec_image_displayer_(4)
 {
     // center layout
@@ -58,11 +59,13 @@ PageBase::PageBase(QWidget *parent)
             return;
         }
 
+        if(show_original_iamge_){
+            vec_image_displayer_[0].setImage(QPixmap(file_path_));
+            vec_image_displayer_[2].setImage(QPixmap(file_path_));
+        }
 
 
         // 加载图片
-        vec_image_displayer_[0].setImage(QPixmap(file_path_));
-        vec_image_displayer_[2].setImage(QPixmap(file_path_));
         loadImage(file_path_);
 
         // 发射信号

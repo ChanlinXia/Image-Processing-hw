@@ -3,8 +3,13 @@
 
 #include "sys.h"
 
+
+#define BINARY_ONE 255
+#define BINARY_ZERO 0
+
 using grayEigen = Eigen::Matrix<uchar,Eigen::Dynamic,Eigen::Dynamic>;
 using intensityEigen = Eigen::MatrixXd;
+
 
 // 定义 traits 模板
 template<typename T>
@@ -89,7 +94,11 @@ struct ImageTraits<grayEigen> {
 
 class ImageProcesser
 {
+
+
 public:
+    enum class SE_TYPE{Rect,Cross,Ellipse,Specific};
+    enum class MORPHOLOGICAL_OPERATION_TYPE{Dilation,Erosion,Opening,Closing};
     ImageProcesser();
 
     // threshold
@@ -104,6 +113,24 @@ public:
     // filter
     const QString medianFilter(intensityEigen& image,int kernel_size,grayEigen& rlt) const;
     const QString medianFilter(cv::Mat& image,int kernel_size,cv::Mat& rlt) const;
+
+    // morphology
+    // template<typename T>
+    const QString genSEKernel(cv::Mat& kernel,SE_TYPE se_type,int kernel_size)const;
+    const QString genSEKernel(grayEigen& kernel,SE_TYPE se_type,int kernel_size)const;
+
+
+    const QString morphologicalDilation(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt)const;
+    const QString morphologicalDilation(grayEigen& image,const grayEigen& se,grayEigen& rlt)const;
+
+    const QString morphologicalErosion(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
+    const QString morphologicalErosion(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+
+    const QString morphologicalOepning(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
+    const QString morphologicalOepning(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+
+    const QString morphologicalClosing(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
+    const QString morphologicalClosing(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
 
     template<typename T>
     void geneGaussionKernel(T& kernel,int kernel_size){
@@ -162,7 +189,21 @@ public:
         return "ok";
     }
 
+    template<typename T,typename rltT>
+    const QString calcHist(T& image,rltT& rlt) const{
+        int rows = ImageTraits<T>::rows(image);
+        int cols = ImageTraits<T>::cols(image);
+        if(rows == 0 || cols ==0) return "[ImageProcesser][calcHist]the image is empty";
 
+        for(int i=0;i<rows;++i){
+            for(int j=0;j<cols;++j){
+                auto brightNess = ImageTraits<T>::getValue(image,i,j);
+                ++rlt[brightNess];
+            }
+        }
+
+        return "ok";
+    }
 
 private:
     void getGray(cv::Mat& image,cv::Mat& gray) const;

@@ -77,8 +77,10 @@ void PageHistogramAndThreshold::setContainer(){
 
         image_matrix_.resize(rows, cols);
         image_matrix_mask_.resize(rows,cols);
-        calcIntensity();
+        // /*calcIntensity*/();
+        getImageProcessor().calcHist(image_container.gray_matrix,gray_histogram_);
         updateChart();
+        updateMask();
         updateOutputImage();
         // cv::cv2eigen(image_mat_, image_matrix_);
         // qDebug() << "cv to eigen"<<  Qt::endl;
@@ -261,58 +263,58 @@ void PageHistogramAndThreshold::updateThresholdLine(){
 *   @return void
 *   @author Chanlin
 **************************************************/
-void PageHistogramAndThreshold::calcIntensity(){
-    // if(image_matrix_.)
-    std::function<uint8_t(int,int)> calcPixel;  // 声明一个可调用对象
-    if(image_mat_.channels() == 3){ // three channel bgr default
-        if(image_mat_.type() == CV_8UC3){ // bgr8
-            calcPixel = [this](int x,int y)->uint8_t{
-                cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
-                return static_cast<uint8_t>(0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5);
-            };
-        }
-        else if(image_mat_.type() == CV_16UC3 ){ // bgr16
-            calcPixel = [this](int x,int y)->uint8_t{
-                cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
-                return static_cast<uint8_t>(255 *
-                                            (0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5)
-                                            / 65535.0+0.5);
-            };
-        }
-        else{
-            calcPixel = [this](int x,int y)->uint8_t{
-                cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
-                return static_cast<uint8_t>((0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2])*255+0.5);
-            };
-        }
-    }
-    else if(image_mat_.channels() == 1){
-        calcPixel = [this](int x,int y)->uint8_t{
-            // cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
-            return image_mat_.at<uint8_t>(y,x);
-        };
-    }
-    else{
-        return;
-    }
+// void PageHistogramAndThreshold::calcIntensity(){
+//     // if(image_matrix_.)
+//     std::function<uint8_t(int,int)> calcPixel;  // 声明一个可调用对象
+//     if(image_mat_.channels() == 3){ // three channel bgr default
+//         if(image_mat_.type() == CV_8UC3){ // bgr8
+//             calcPixel = [this](int x,int y)->uint8_t{
+//                 cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
+//                 return static_cast<uint8_t>(0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5);
+//             };
+//         }
+//         else if(image_mat_.type() == CV_16UC3 ){ // bgr16
+//             calcPixel = [this](int x,int y)->uint8_t{
+//                 cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
+//                 return static_cast<uint8_t>(255 *
+//                                             (0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2] + 0.5)
+//                                             / 65535.0+0.5);
+//             };
+//         }
+//         else{
+//             calcPixel = [this](int x,int y)->uint8_t{
+//                 cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
+//                 return static_cast<uint8_t>((0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2])*255+0.5);
+//             };
+//         }
+//     }
+//     else if(image_mat_.channels() == 1){
+//         calcPixel = [this](int x,int y)->uint8_t{
+//             // cv::Vec3b pixel = image_mat_.at<cv::Vec3b>(y, x);  // (行, 列)
+//             return image_mat_.at<uint8_t>(y,x);
+//         };
+//     }
+//     else{
+//         return;
+//     }
 
-    for(int i = 0;i<image_mat_.rows;++i){
-        for(int j=0;j<image_mat_.cols;++j){
-            auto brightness = calcPixel(j,i);
-            image_matrix_(i,j) = brightness;
-            if(threshold_for_up_){
-                if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 1;
-                else image_matrix_mask_(i,j) = 0;
-            }
-            else{
-                if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 0;
-                else image_matrix_mask_(i,j) = 1;
-            }
-            ++gray_histogram_[brightness];
-        }
-    }
+//     for(int i = 0;i<image_mat_.rows;++i){
+//         for(int j=0;j<image_mat_.cols;++j){
+//             auto brightness = calcPixel(j,i);
+//             image_matrix_(i,j) = brightness;
+//             if(threshold_for_up_){
+//                 if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 1;
+//                 else image_matrix_mask_(i,j) = 0;
+//             }
+//             else{
+//                 if(brightness < intensity_threshold_)image_matrix_mask_(i,j) = 0;
+//                 else image_matrix_mask_(i,j) = 1;
+//             }
+//             ++gray_histogram_[brightness];
+//         }
+//     }
 
-}
+// }
 
 /*************************************************
 *   更新mask
@@ -323,7 +325,12 @@ void PageHistogramAndThreshold::calcIntensity(){
 **************************************************/
 void PageHistogramAndThreshold::updateMask(){
     auto& image_processer = getImageProcessor();
-    image_processer.threshold(getImageContainer().gray_matrix,intensity_threshold_,image_matrix_mask_,threshold_for_up_);
+
+    // cv::Mat mask;
+    // auto& image_processer = getImageProcessor();
+    image_processer.threshold(getImageContainer().origin_image,intensity_threshold_,getResultCV(),threshold_for_up_);
+    image_processer.threshold(getImageContainer().gray_matrix,intensity_threshold_,getResultEigen(),threshold_for_up_);
+    setEigenRlt();
 }
 
 /*************************************************
@@ -333,52 +340,53 @@ void PageHistogramAndThreshold::updateMask(){
 *   @return void
 *   @author Chanlin
 **************************************************/
-void PageHistogramAndThreshold::updateOutputImage(){
-    if(image_mat_.rows == 0 || image_matrix_.rows()==0) return ;
-    // 更新右上角的，通过cv pipeline
-    cv::Mat mask;
+// void PageHistogramAndThreshold::updateOutputImage(){
+//     if(image_mat_.rows == 0 || image_matrix_.rows()==0) return ;
+//     // 更新右上角的，通过cv pipeline
+//     cv::Mat mask;
 
-    auto& image_processer = getImageProcessor();
-    image_processer.threshold(getImageContainer().origin_image,intensity_threshold_,mask,threshold_for_up_);
+//     auto& image_processer = getImageProcessor();
+//     image_processer.threshold(getImageContainer().origin_image,intensity_threshold_,mask,threshold_for_up_);
 
-    cv::Mat result;
-    result = cv::Mat::zeros(image_mat_.size(), image_mat_.type());
-    image_mat_.copyTo(result, mask);
+//     cv::Mat result;
+//     result = cv::Mat::zeros(image_mat_.size(), image_mat_.type());
+//     image_mat_.copyTo(result, mask);
 
-    // qDebug() << "start to display" << Qt::endl;
-    auto&  image_displayer = getImageDisplayer();
-    auto& top_right = image_displayer[1];
-    top_right.setImage(result);
+//     // qDebug() << "start to display" << Qt::endl;
+//     auto&  image_displayer = getImageDisplayer();
+//     auto& top_right = image_displayer[1];
+//     top_right.setImage(mask);
 
-    // 更新右下角的
-    cv::Mat origin;
-    image_mat_.copyTo(origin);
+//     // 更新右下角的
+//     cv::Mat origin;
+//     // image_mat_.copyTo(origin);
 
-    if (origin.type() == CV_8UC3) {
-        // 彩色图：3通道
-        for (int i = 0; i < image_matrix_.rows(); ++i) {
-            for (int j = 0; j < image_matrix_.cols(); ++j) {
-                if (!image_matrix_mask_(i, j)) {
-                    // 掩码为 false 的位置设为黑色
-                    origin.at<cv::Vec3b>(i, j) = cv::Vec3b(0, 0, 0);
-                }
-                // 掩码为 true 的位置保持原样（不用处理）
-            }
-        }
-    }
-    else if (origin.type() == CV_8UC1) {
-        // 灰度图：1通道
-        for (int i = 0; i < image_matrix_.rows(); ++i) {
-            for (int j = 0; j < image_matrix_.cols(); ++j) {
-                if (!image_matrix_mask_(i, j)) {
-                    origin.at<uchar>(i, j) = 0;
-                }
-            }
-        }
-    }
+//     // if (origin.type() == CV_8UC3) {
+//     //     // 彩色图：3通道
+//     //     for (int i = 0; i < image_matrix_.rows(); ++i) {
+//     //         for (int j = 0; j < image_matrix_.cols(); ++j) {
+//     //             if (!image_matrix_mask_(i, j)) {
+//     //                 // 掩码为 false 的位置设为黑色
+//     //                 origin.at<cv::Vec3b>(i, j) = cv::Vec3b(0, 0, 0);
+//     //             }
+//     //             // 掩码为 true 的位置保持原样（不用处理）
+//     //         }
+//     //     }
+//     // }
+//     // else if (origin.type() == CV_8UC1) {
+//     //     // 灰度图：1通道
+//     //     for (int i = 0; i < image_matrix_.rows(); ++i) {
+//     //         for (int j = 0; j < image_matrix_.cols(); ++j) {
+//     //             if (!image_matrix_mask_(i, j)) {
+//     //                 origin.at<uchar>(i, j) = 0;
+//     //             }
+//     //         }
+//     //     }
+//     // }
 
-    auto& buttom_right = image_displayer[3];
-    buttom_right.setImage(origin);
-}
+//     cv::eigen2cv(image_matrix_mask_,origin);
+//     auto& buttom_right = image_displayer[3];
+//     buttom_right.setImage(origin);
+// }
 
 

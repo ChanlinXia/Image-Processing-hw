@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     // auto page = ;
     ui->tabWidget_task_tabs->addTab(new PageHistogramAndThreshold(),"Histogram and Threshold");
     ui->tabWidget_task_tabs->addTab(new pageImageFilter(),"Image Filters");
-    ui->tabWidget_task_tabs->addTab(new pageBinaryOperation(),"Binary Operation");
+    ui->tabWidget_task_tabs->addTab(new pageBinaryOperation(false),"Binary Operation");
 
 
 }
