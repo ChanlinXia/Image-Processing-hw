@@ -509,9 +509,25 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
         }
     }
 
-    // 初始化结果矩阵（全0）
+    // 计算各个方向的边界填充大小
+    int top = se_rows / 2;
+    int bottom = se_rows - top - 1;
+    int left = se_cols / 2;
+    int right = se_cols - left - 1;
+
+
+    int padded_rows = rows + top + bottom;
+    int padded_cols = cols + left + right;
+    grayEigen padded(padded_rows, padded_cols);
+    padded.setZero();  // 边界填充0
+
+
+    // 复制原图像到中心区域
+    padded.block(top, left, rows, cols) = image;
+
+    // 初始化结果矩阵
     rlt.resize(rows, cols);
-    rlt.setZero();
+    // rlt.setZero();
 
     // 遍历每个像素
     for (int i = 0; i < rows; i++) {
@@ -520,16 +536,16 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
 
             // 检查结构元素覆盖的所有位置是否都是前景
             for (const auto& offset : offsets) {
-                int img_i = i + offset.first;
-                int img_j = j + offset.second;
+                int img_i = i + top + offset.first;
+                int img_j = j + left + offset.second;
 
-                // 边界检查（超出边界的视为背景）
+                // // // 边界检查（超出边界的视为背景）
                 if (img_i < 0 || img_i >= rows || img_j < 0 || img_j >= cols) {
-                    all_foreground = false;
-                    break;
+                    // all_foreground = false;
+                    continue; // 对于边界外选择跳过，这是和opencv结果一致的关键
                 }
 
-                if (image(img_i, img_j) == 0) {  // 遇到背景
+                if (padded(img_i, img_j) == 0) {  // 遇到背景
                     all_foreground = false;
                     break;
                 }
@@ -573,7 +589,7 @@ const QString ImageProcesser::morphologicalOepning(cv::Mat& image, const cv::Mat
 }
 
 /*************************************************
-*   开运算
+*   开运算 Eigen
 *
 *   @param  void
 *   @return void
