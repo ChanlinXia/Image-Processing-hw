@@ -1,6 +1,24 @@
 #include "imageprocesser.h"
+#include <unordered_set>
 
 ImageProcesser::ImageProcesser() {}
+
+
+/*************************************************
+*   展示图片，调试用
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+void ImageProcesser::show(const grayEigen& image,const std::string& title)const{
+    cv::Mat cv_image;
+    cv::eigen2cv(image,cv_image);
+
+    cv::imshow(title, cv_image);
+    cv::waitKey(0);
+}
+
 
 /*************************************************
 *   卷积，基于cv
@@ -114,7 +132,7 @@ const QString ImageProcesser::medianFilter(intensityEigen& image,int kernel_size
 
     int pad = kernel_size / 2;
 
-    // 1. 创建 padded 矩阵并填充边界(镜像)
+    // 创建 padded 矩阵并填充边界(镜像)
     intensityEigen padded(rows + 2 * pad, cols + 2 * pad);
     padded.block(pad, pad, rows, cols) = image;
 
@@ -377,6 +395,15 @@ const QString ImageProcesser::genSEKernel(grayEigen& kernel,SE_TYPE se_type,int 
 *   @author Chanlin
 **************************************************/
 const QString ImageProcesser::morphologicalDilation(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt)const{
+    if (image.empty()) {
+        qDebug() << "Input image is empty" << Qt::endl;
+        return "error: empty image";
+    }
+
+    if (se.empty()) {
+        qDebug() << "Structuring element is empty" << Qt::endl;
+        return "error: empty SE";
+    }
     cv::dilate(image, rlt, se);
     return "ok";
 }
@@ -413,8 +440,8 @@ const QString ImageProcesser::morphologicalDilation(grayEigen& image,const grayE
     int anchor_x = se_cols / 2;
 
     // 初始化结果矩阵（全0，与输入同尺寸）
-    // rlt.resize(rows, cols);
-    // rlt.setZero();
+    rlt.resize(rows, cols);
+    rlt.setZero();
 
     // 遍历图像每个像素
     for (int i = 0; i < rows; i++) {
@@ -509,25 +536,9 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
         }
     }
 
-    // 计算各个方向的边界填充大小
-    int top = se_rows / 2;
-    int bottom = se_rows - top - 1;
-    int left = se_cols / 2;
-    int right = se_cols - left - 1;
-
-
-    int padded_rows = rows + top + bottom;
-    int padded_cols = cols + left + right;
-    grayEigen padded(padded_rows, padded_cols);
-    padded.setZero();  // 边界填充0
-
-
-    // 复制原图像到中心区域
-    padded.block(top, left, rows, cols) = image;
-
     // 初始化结果矩阵
     rlt.resize(rows, cols);
-    // rlt.setZero();
+    rlt.setZero();
 
     // 遍历每个像素
     for (int i = 0; i < rows; i++) {
@@ -536,8 +547,9 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
 
             // 检查结构元素覆盖的所有位置是否都是前景
             for (const auto& offset : offsets) {
-                int img_i = i + top + offset.first;
-                int img_j = j + left + offset.second;
+                int img_i = i  + offset.first;
+                int img_j = j  + offset.second;
+
 
                 // // // 边界检查（超出边界的视为背景）
                 if (img_i < 0 || img_i >= rows || img_j < 0 || img_j >= cols) {
@@ -545,7 +557,7 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
                     continue; // 对于边界外选择跳过，这是和opencv结果一致的关键
                 }
 
-                if (padded(img_i, img_j) == 0) {  // 遇到背景
+                if (image(img_i, img_j) == 0) {  // 遇到背景
                     all_foreground = false;
                     break;
                 }
@@ -579,11 +591,6 @@ const QString ImageProcesser::morphologicalOepning(cv::Mat& image, const cv::Mat
 
     // 方法1：使用 OpenCV 内置函数
     cv::morphologyEx(image, rlt, cv::MORPH_OPEN, se);
-
-    // 方法2：手动实现（注释掉，使用内置函数更快）
-    // cv::Mat temp;
-    // cv::erode(image, temp, se);
-    // cv::dilate(temp, rlt, se);
 
     return "ok";
 }
@@ -671,3 +678,495 @@ const QString ImageProcesser::morphologicalClosing(grayEigen& image, const grayE
 
     return result;
 }
+
+/*************************************************
+*   距离变换 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::distanceTransform(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const{
+    if(image.empty()) return "the input image is empty.";
+
+    int distanceType = 0;
+    int maskSize = 0;
+
+    switch(type){
+    case DISTANCE_TYPE::L1:
+        distanceType = cv::DIST_L1;
+        maskSize = 3;  // L1 通常使用 3x3 mask
+        break;
+
+    case DISTANCE_TYPE::Chess:
+        distanceType = cv::DIST_C;
+        maskSize = 3;  // Chessboard 距离使用 3x3 mask
+        break;
+
+    case DISTANCE_TYPE::L2:
+        distanceType = cv::DIST_L2;
+        maskSize = 5;  // L2 精度较低但速度快的版本
+        break;
+
+    case DISTANCE_TYPE::L2_Precise:
+        distanceType = cv::DIST_L2;
+        maskSize = cv::DIST_MASK_PRECISE;  // 精确的 L2 距离计算
+        break;
+    }
+
+    // 执行距离变换和归一化
+    cv::Mat normalized;
+    dt_dist_map_cv_ = cv::Mat::zeros(image.size(), CV_32F);
+    cv::distanceTransform(image, dt_dist_map_cv_, distanceType, maskSize);
+
+    cv::normalize(dt_dist_map_cv_, normalized, 0, 255, cv::NORM_MINMAX);
+    normalized.convertTo(rlt, CV_8U);
+
+    return "ok";
+}
+
+/*************************************************
+*   距离变换 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::distanceTransform(grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const{
+    double a=0.0; // 直线代价
+    double b=0.0; // 对角代价
+    switch(type){
+    case DISTANCE_TYPE::L1:
+        a = 1.0;
+        b = 2.0;
+        // mask.resize(maskSize,maskSize); mask.setZero();
+        // mask <<
+        break;
+
+    case DISTANCE_TYPE::Chess:
+        a = 1.0;
+        b = 1.0;
+        break;
+    case DISTANCE_TYPE::L2:
+        a = 1.0;
+        b = 1.44;
+        break;
+
+    case DISTANCE_TYPE::L2_Precise:
+        a = 1.0;
+        b = 1.44;
+        // maskSize = cv::DIST_MASK_PRECISE;  // 精确的 L2 距离计算
+        break;
+    default:
+        break;
+    }
+
+    borgefors(image,a,b,rlt);
+    return "ok";
+}
+
+/*************************************************
+*   borgefors倒角算法求解距离变换
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::borgefors(const grayEigen& image,double a,double b,grayEigen& rlt)const{
+    // intensityEigen dist(image.rows(),image.cols()); // 距离图
+    // dt_dist_map_eigen_.set
+    dt_dist_map_eigen_.resize(image.rows(),image.cols());
+    // dt_dist_map_eigen_.res
+    dt_dist_map_eigen_.setZero();
+    intensityEigen& dist = dt_dist_map_eigen_;
+
+    double inf = std::numeric_limits<double>::infinity();
+
+    int rows = image.rows();
+    int cols = image.cols();
+
+    for(int i =0;i<rows;++i){
+        for(int j =0;j<cols;++j){
+            if(image(i,j) != 0) // 前景
+                dist(i,j) = inf;
+        }
+    }
+
+    // 动态规划找最小距离
+    // 前向扫描
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (dist(i, j) != 0) { // 前景
+                if (i > 0 && j > 0) // 左上
+                    dist(i, j) = std::min(dist(i, j), dist(i-1, j-1) + b);
+                if (i > 0)  // 左
+                    dist(i, j) = std::min(dist(i, j), dist(i-1, j) + a);
+                if (i > 0 && j < cols-1)    // 左下
+                    dist(i, j) = std::min(dist(i, j), dist(i-1, j+1) + b);
+                if (j > 0)      // 上
+                    dist(i, j) = std::min(dist(i, j), dist(i, j-1) + a);
+            }
+        }
+    }
+
+    // 后向扫描
+    for (int i = rows-1; i >= 0; i--) {
+        for (int j = cols-1; j >= 0; j--) {
+            if (dist(i, j) != 0) { // 前景
+                if (i < rows-1 && j < cols-1)   // 右下
+                    dist(i, j) = std::min(dist(i, j), dist(i+1, j+1) + b);
+                if (i < rows-1) // 右
+                    dist(i, j) = std::min(dist(i, j), dist(i+1, j) + a);
+                if (i < rows-1 && j > 0)    // 右上
+                    dist(i, j) = std::min(dist(i, j), dist(i+1, j-1) + b);
+                if (j < cols-1)             // 下
+                    dist(i, j) = std::min(dist(i, j), dist(i, j+1) + a);
+            }
+        }
+    }
+
+    // dist 归一化
+    double max_dist = dist.maxCoeff();
+
+    for(int i=0;i<rows;++i){
+        for(int j =0;j<cols;++j){
+            rlt(i,j) = static_cast<uchar>(255.0 * (dist(i,j)/max_dist));
+        }
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   骨架 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::skeleton(const cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const{
+    if(image.empty()) return "the input image is empty.";
+    cv::Mat se =cv::getStructuringElement(cv::MORPH_CROSS,{3,3});
+
+    cv::Mat ori_image;
+    cv::Mat ero;
+    cv::Mat temp;
+    image.copyTo(ori_image);
+    rlt.setTo(0);  // 必须清除，因为不一定对所有pixel进行了处理
+
+    while(1){
+        // 腐蚀
+        cv::erode(ori_image,ero,se);
+        // 膨胀
+        cv::dilate(ero, temp,se);
+        // 相减
+        cv::subtract(ori_image,temp,temp);
+        // 或操作
+        cv::bitwise_or(rlt,temp,rlt);
+
+        ero.copyTo(ori_image);
+
+        if(cv::countNonZero(ori_image) == 0)
+            break;
+
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   骨架算法 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::skeleton(const grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const{
+    grayEigen se;
+    se.resize(3,3);
+    genSEKernel(se,SE_TYPE::Cross,3);
+
+    grayEigen ori_image = image;
+    grayEigen ero(image.rows(), image.cols());
+    grayEigen dilated(image.rows(), image.cols());
+    grayEigen skeleton_part(image.rows(), image.cols());
+
+    ero.setZero();
+    dilated.setZero();
+    skeleton_part.setZero();
+    rlt.setZero();
+
+    while(1){
+        // 腐蚀
+        morphologicalErosion(ori_image, se, ero);
+
+        // 膨胀
+        morphologicalDilation(ero, se, dilated);
+
+        // 相减（得到当前层的骨架）
+        subtract(ori_image, dilated, skeleton_part);
+
+        // 累积骨架
+        bitwise_or(rlt, skeleton_part, rlt);
+
+        // 更新原图像为腐蚀结果
+        ori_image = ero;
+
+
+        if(countNonZero(ori_image) == 0)
+            break;
+
+        // itr_cnt++;
+        // if(itr_cnt > 1000) break;
+
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   带限相减
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::subtract(grayEigen& image1,grayEigen& image2,grayEigen& rlt)const{
+    rlt = image1 - image2;
+    for(int i = 0; i < rlt.rows(); ++i) {
+        for(int j = 0; j < rlt.cols(); ++j) {
+            if(rlt(i,j) < 0) rlt(i,j) = 0;
+            if(rlt(i,j) > 255) rlt(i,j) = 255;  // 也截断上限
+        }
+    }
+    return "ok";
+}
+
+/*************************************************
+*   图像或操作
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::bitwise_or(
+    const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const{
+    // 检查尺寸
+    if (image1.rows() != image2.rows() || image1.cols() != image2.cols()) {
+        return QString("Image size mismatch");
+    }
+    for(int i=0;i<image1.rows();++i){
+        for(int j=0;j<image1.cols();++j){
+            if(image1(i,j)!=0||image2(i,j) !=0) rlt(i,j) = 255;
+            else rlt(i,j) = 0;
+        }
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   非0计数
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+int ImageProcesser::countNonZero(grayEigen& image)const{
+    int cntn0 = 0;
+    for(int i =0;i<image.rows();++i){
+        for(int j=0;j<image.cols();++j){
+            if(image(i,j) != 0) ++cntn0;
+        }
+    }
+    return cntn0;
+}
+
+/*************************************************
+*   骨架重建
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::skeletonRestoration(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const{
+    if(image.empty()) return "the input image is empty.";
+    // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
+
+    cv::Mat skeletonDist = cv::Mat::zeros(image.size(), CV_32F);
+    for(int i = 0; i < image.rows; ++i) {
+        for(int j = 0; j < image.cols; ++j) {
+            if(image.at<uchar>(i, j) != 0) {
+                skeletonDist.at<float>(i, j) = dt_dist_map_cv_.at<float>(i, j);
+            }
+        }
+    }
+
+    // 从距离图转到膨胀次数图
+    cv::Mat times;
+    skeletonDist.convertTo(times, CV_32S);
+
+    rlt = cv::Mat::zeros(image.size(), CV_8U);
+
+    // 不做也可以
+    std::vector<int> uniqueTimes;
+    for(int i = 0; i < times.rows; ++i) {
+        for(int j = 0; j < times.cols; ++j) {
+            int t = times.at<int>(i, j);
+            if(t > 0 && std::find(uniqueTimes.begin(), uniqueTimes.end(), t) == uniqueTimes.end()) {
+                uniqueTimes.push_back(t);
+            }
+        }
+    }
+
+    // 从大到小处理,自适应核大小
+    std::sort(uniqueTimes.begin(), uniqueTimes.end(), std::greater<int>());
+    cv::Mat current = image.clone();
+
+    for(int t : uniqueTimes) {
+        // 提取需要膨胀t次的点
+        int radius = static_cast<int>(t + 0.5);
+        cv::Mat mask;
+        cv::compare(times, t, mask, cv::CMP_EQ);
+        cv::bitwise_and(current, mask, mask);
+        if(cv::countNonZero(mask) > 0) {
+            cv::Mat kernel = cv::getStructuringElement(
+                cv::MORPH_ELLIPSE,
+                cv::Size(2*radius + 1, 2*radius + 1)
+                );
+            cv::dilate(mask, mask, kernel);
+            cv::bitwise_or(rlt, mask, rlt);
+        }
+
+        // 更新current用于下一轮（距离减1）
+        cv::Mat nextMask;
+
+        cv::compare(times, t - 1, nextMask, cv::CMP_GE);
+        cv::bitwise_and(image, nextMask, current);
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   骨架重建
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::skeletonRestoration(grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const{
+    int rows = image.rows();
+    int cols = image.cols();
+
+    std::unordered_set<int> uniqueTimes;
+    // Eigen::Matrix<int,-1,-1> timesMap;
+    // timesMap.resize(rows,cols);
+    // timesMap.setZero();
+    for(int i =0;i<rows;++i){
+        for(int j=0;j<cols;++j){
+            if(image(i,j) != 0){
+                uniqueTimes.insert(static_cast<int>(dt_dist_map_eigen_(i,j)));
+                // timesMap(i,j) = static_cast<int>(dt_dist_map_eigen_(i,j));
+            }
+        }
+    }
+
+    rlt.resize(rows,cols);
+    rlt.setZero();
+
+    // 排序
+    std::vector<int> sortedTimes(uniqueTimes.begin(), uniqueTimes.end());
+    std::sort(sortedTimes.begin(), sortedTimes.end(),std::greater<int>());
+
+    grayEigen current = image;
+    for(auto& t : sortedTimes) {
+        grayEigen mask;
+        compare(dt_dist_map_eigen_,t,image,mask,CMP_TYPE::COMP_E);
+        bitwise_and(current, mask, mask);
+        std::cout << "t:" << t << std::endl;
+        // show(mask,"mask");
+        if(countNonZero(mask) > 0) {
+            grayEigen dilated;
+            grayEigen se;
+
+            genSEKernel(se,SE_TYPE::Ellipse,2*t+1);
+            morphologicalDilation(mask, se,dilated);
+            bitwise_or(rlt, dilated, rlt);
+            // show(rlt,"the rlt_"+std::to_string(t));
+        }
+
+        // 更新current用于下一轮（距离减1）
+        grayEigen nextMask;
+
+        compare(dt_dist_map_eigen_, t - 1, image,nextMask, CMP_TYPE::COMP_GE);
+        bitwise_and(image, nextMask, current);
+    }
+
+    return "ok";
+}
+
+/*************************************************
+*   compare
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+void ImageProcesser::compare(intensityEigen& image,int t,const grayEigen& mask,grayEigen& rlt,CMP_TYPE cmp_type)const{
+    // 确保输出图像尺寸与输入一致
+    rlt.resize(image.rows(), image.cols());
+    rlt.setZero();
+
+    // 根据比较类型定义比较函数
+    std::function<bool(int, int)> cmp_func;
+    switch (cmp_type) {
+    case CMP_TYPE::COMP_E:  // 等于
+        cmp_func = [t](int pixel, int) { return pixel == t; };
+        break;
+    case CMP_TYPE::COMP_GE: // 大于等于
+        cmp_func = [t](int pixel, int) { return pixel >= t; };
+        break;
+    default:
+        throw std::invalid_argument("Unsupported comparison type");
+    }
+
+    // 遍历图像，仅处理mask非0的位置
+    for (int i = 0; i < image.rows(); ++i) {
+        for (int j = 0; j < image.cols(); ++j) {
+            if (mask(i, j) != 0) {  // 仅处理mask中的有效像素
+                if (cmp_func(image(i, j), t)) {
+                    rlt(i, j) = BINARY_ONE;
+                } else {
+                    rlt(i, j) = BINARY_ZERO;
+                }
+            }
+        }
+    }
+}
+
+/*************************************************
+*   图像与
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::bitwise_and(
+    const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const{
+    // 检查尺寸是否一致
+    if (image1.rows() != image2.rows() || image1.cols() != image2.cols()) {
+        return QString("Image size mismatch: (%1,%2) vs (%3,%4)")
+        .arg(image1.rows()).arg(image1.cols())
+            .arg(image2.rows()).arg(image2.cols());
+    }
+
+    for(int i=0;i<image1.rows();++i){
+        for(int j=0;j<image1.cols();++j){
+            rlt(i,j) = (image1(i,j)!=0 && image2(i,j) != 0) ? BINARY_ONE:BINARY_ZERO;
+        }
+    }
+
+    return "ok";
+}
+

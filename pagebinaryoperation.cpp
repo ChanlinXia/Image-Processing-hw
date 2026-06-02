@@ -51,41 +51,6 @@ void pageBinaryOperation::setContainer(){
     setting_layout->setColumnStretch(1, 1);
     setting_layout->setColumnStretch(2, 1);
 
-    // QVBoxLayout* button_layout = new QVBoxLayout();
-    // QHBoxLayout* upper_button_layout = new QHBoxLayout();
-    // QHBoxLayout* down_button_layout = new QHBoxLayout();
-    // QButtonGroup* kernel_group = new QButtonGroup(this);
-    // QButtonGroup* operation_group = new QButtonGroup(this);
-    // std::vector<QString> kenrnel_button_lable ={
-    //     "Rect","Cross","Ellipse",
-    // };
-    // std::vector<QString> operation_button_lable ={
-    //     "Dilation","Erosion","Opening","Closing"
-    // };
-    // upper_button_layout->addStretch();
-
-    // for(int i=0;i<operation_button_lable.size();++i){
-    //     QPushButton* button = new QPushButton(operation_button_lable[i]);
-    //     operation_group->addButton(button,i);
-    //     down_button_layout->addWidget(button);
-    // }
-
-    // for(int i=0;i<kenrnel_button_lable.size();++i){
-    //     QPushButton* button = new QPushButton(kenrnel_button_lable[i]);
-    //     kernel_group->addButton(button,i);
-    //     upper_button_layout->addWidget(button);
-    // }
-
-    // QHBoxLayout* kernel_size_layout = new QHBoxLayout();
-    // QLineEdit* kernel_size_edit = new QLineEdit("3");
-    // QLabel* kernel_size_lable = new QLabel("kernel_size");
-    // kernel_size_layout->addWidget(kernel_size_lable,0);
-    // kernel_size_layout->addWidget(kernel_size_edit,0);
-    // upper_button_layout->addLayout(kernel_size_layout);
-
-    // button_layout->addLayout(upper_button_layout);
-    // button_layout->addLayout(down_button_layout);
-
     container_layout->addLayout(setting_layout);
 
     connect(operation_group, QOverload<int>::of(&QButtonGroup::buttonClicked),

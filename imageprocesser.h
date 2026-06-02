@@ -94,11 +94,11 @@ struct ImageTraits<grayEigen> {
 
 class ImageProcesser
 {
-
-
 public:
     enum class SE_TYPE{Rect,Cross,Ellipse,Specific};
     enum class MORPHOLOGICAL_OPERATION_TYPE{Dilation,Erosion,Opening,Closing};
+    enum class DISTANCE_TYPE{L1,Chess,L2,L2_Precise};
+    enum class CMP_TYPE{COMP_E,COMP_GE};
     ImageProcesser();
 
     // threshold
@@ -114,11 +114,9 @@ public:
     const QString medianFilter(intensityEigen& image,int kernel_size,grayEigen& rlt) const;
     const QString medianFilter(cv::Mat& image,int kernel_size,cv::Mat& rlt) const;
 
-    // morphology
-    // template<typename T>
+    // morphology operation
     const QString genSEKernel(cv::Mat& kernel,SE_TYPE se_type,int kernel_size)const;
     const QString genSEKernel(grayEigen& kernel,SE_TYPE se_type,int kernel_size)const;
-
 
     const QString morphologicalDilation(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt)const;
     const QString morphologicalDilation(grayEigen& image,const grayEigen& se,grayEigen& rlt)const;
@@ -131,6 +129,28 @@ public:
 
     const QString morphologicalClosing(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
     const QString morphologicalClosing(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+
+    // morphology function
+    const QString distanceTransform(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const;
+    const QString distanceTransform(grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const;
+
+    const QString skeleton(const cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const;
+    const QString skeleton(const grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const;
+
+    const QString skeletonRestoration(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const;
+    const QString skeletonRestoration(grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const;
+
+    const QString borgefors(const grayEigen& image,double a,double b,grayEigen& rlt)const;
+    const QString subtract(grayEigen& image1,grayEigen& image2,grayEigen& rlt)const;
+    const QString bitwise_or(const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const;
+    const QString bitwise_and(const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const;
+
+    void compare(intensityEigen& image,int t,const grayEigen& mask,grayEigen& rlt,CMP_TYPE cmp_type)const;
+
+
+
+    int countNonZero(grayEigen& image)const;
+
 
     template<typename T>
     void geneGaussionKernel(T& kernel,int kernel_size){
@@ -205,11 +225,17 @@ public:
         return "ok";
     }
 
+
 private:
     void getGray(cv::Mat& image,cv::Mat& gray) const;
+    // std::function<double >
 
     template<typename T>
     void combine(T& image1,T& image2);
+    void show(const grayEigen& image,const std::string& title)const;
+
+    mutable cv::Mat dt_dist_map_cv_;
+    mutable intensityEigen dt_dist_map_eigen_;
 };
 
 #endif // IMAGEPROCESSER_H
