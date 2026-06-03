@@ -1189,3 +1189,188 @@ const QString ImageProcesser::bitwise_and(
     return "ok";
 }
 
+/*************************************************
+*   灰度边缘检测 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalEdgeDetection(cv::Mat& image, cv::Mat& rlt) const{
+    if(image.empty()) return "the input is empty";
+
+    cv::Mat se = cv::getStructuringElement(
+        cv::MORPH_ELLIPSE,
+        cv::Size(3, 3)
+        );
+    cv::Mat dil;
+    cv::dilate(image, dil, se);
+
+    cv::Mat ero;
+    cv::erode(image, ero, se);
+
+    rlt = dil - ero;
+    return "ok";
+}
+
+/*************************************************
+*   灰度边缘检测 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalEdgeDetection(grayEigen& image,grayEigen& rlt) const{
+    if(image.rows() == 0) return "the input is empty";
+
+    grayEigen se;
+    genSEKernel(se,SE_TYPE::Ellipse,3);
+    grayEigen dil;
+    morphologicalDilation(image,se,dil);
+    grayEigen ero;
+    morphologicalErosion(image,se,ero,false);
+
+    rlt = dil -ero;
+    return "ok";
+}
+
+/*************************************************
+*   灰度重建 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalReconstruction(const cv::Mat& marker,const cv::Mat& mask, cv::Mat& rlt) const{
+    if(marker.empty() || mask.empty()) return "Input is empty";
+
+    int se_size = 3;
+    cv::Mat current, next;
+    cv::min(marker, mask, current);  // 标记图不能高于掩模图
+
+    // 3. 创建结构元素
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(se_size, se_size));
+
+    // 4. 迭代条件膨胀
+    int max_iterations = 1000; // 防止死循环的安全阀
+    int iter = 0;
+
+    while(iter < max_iterations) {
+        // 4.1 标准灰度膨胀
+        cv::dilate(current, next, kernel);
+
+        // 4.2 条件约束：取膨胀结果和掩模的逐像素最小值 (Geodesic Dilation的关键)
+        cv::min(next, mask, next);
+
+        // 4.3 检查是否收敛（两次迭代结果完全相同）
+        if (cv::countNonZero(current != next) == 0) {
+            break;
+        }
+
+        // 4.4 更新当前图像，继续迭代
+        next.copyTo(current);
+        iter++;
+    }
+
+    // 5. 输出结果
+    current.copyTo(rlt);
+    return "ok";
+    return "ok";
+}
+
+/*************************************************
+*   灰度重建 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalReconstruction(const grayEigen& marker,const grayEigen& mask,grayEigen& rlt) const{
+    if(marker.size() == 0 || mask.size() == 0) {
+        return "error: empty image";
+    }
+
+    if(marker.rows() != mask.rows() || marker.cols() != mask.cols()) {
+        return "error: size mismatch";
+    }
+
+    // 2. 确保 marker <= mask
+    grayEigen current = marker.cwiseMin(mask);
+    grayEigen next;
+    grayEigen se;  // 结构元素
+
+    // 3. 生成结构元素（3x3 全1，用于膨胀）
+    genSEKernel(se, SE_TYPE::Rect, 3);  // 假设你有 SE_RECT 枚举
+
+    // 4. 迭代条件膨胀
+    int max_iterations = 1000;
+    int iter = 0;
+
+    while(iter < max_iterations) {
+        // 4.1 灰度膨胀（注意：这里需要灰度模式，is_bin = false）
+        morphologicalDilation(current, se, next);  // 你的膨胀函数
+
+        // 4.2 条件约束：逐像素取最小值
+        next = next.cwiseMin(mask);
+
+        // 4.3 检查收敛
+        if(next == current) {
+            break;
+        }
+
+        // 4.4 更新
+        current = next;
+        iter++;
+    }
+
+    rlt = current;
+    return "ok";
+}
+
+/*************************************************
+*   灰度梯度计算 cv
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalGradient(cv::Mat& image, cv::Mat& rlt) const{
+    if(image.empty()) return "the input is empty";
+    int size = 5;
+
+    cv::Mat se = cv::getStructuringElement(
+        cv::MORPH_ELLIPSE,
+        cv::Size(size, size)
+        );
+    cv::Mat dil;
+    cv::dilate(image, dil, se);
+
+    cv::Mat ero;
+    cv::erode(image, ero, se);
+
+    rlt = dil - ero;
+    return "ok";
+}
+
+/*************************************************
+*   灰度梯度计算 eigen
+*
+*   @param  void
+*   @return void
+*   @author Chanlin
+**************************************************/
+const QString ImageProcesser::morphologicalGradient(grayEigen& image,grayEigen& rlt) const{
+    if(image.rows() == 0) return "the input is empty";
+
+    int size = 5;
+    grayEigen se;
+    genSEKernel(se,SE_TYPE::Ellipse,size);
+    grayEigen dil;
+    morphologicalDilation(image,se,dil);
+    grayEigen ero;
+    morphologicalErosion(image,se,ero,false);
+
+    rlt = dil -ero;
+    return "ok";
+}
+

@@ -15,10 +15,6 @@ private:
     void getGrayImage();
 
 
-
-    grayEigen bin_matrix_;
-    cv::Mat bin_mat_;
-
     grayEigen gray_matrix_;
     cv::Mat gray_mat_;
 

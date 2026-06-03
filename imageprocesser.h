@@ -140,10 +140,19 @@ public:
     const QString skeletonRestoration(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const;
     const QString skeletonRestoration(grayEigen& image,DISTANCE_TYPE type,grayEigen& rlt) const;
 
+    const QString morphologicalEdgeDetection(cv::Mat& image, cv::Mat& rlt) const;
+    const QString morphologicalReconstruction(const cv::Mat& marker,const cv::Mat& mask, cv::Mat& rlt) const;
+    const QString morphologicalGradient(cv::Mat& image, cv::Mat& rlt) const;
+
+    const QString morphologicalEdgeDetection(grayEigen& image,grayEigen& rlt) const;
+    const QString morphologicalReconstruction(const grayEigen& marker,const grayEigen& mask,grayEigen& rlt) const;
+    const QString morphologicalGradient(grayEigen& image,grayEigen& rlt) const;
+
     const QString borgefors(const grayEigen& image,double a,double b,grayEigen& rlt)const;
     const QString subtract(grayEigen& image1,grayEigen& image2,grayEigen& rlt)const;
     const QString bitwise_or(const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const;
     const QString bitwise_and(const grayEigen& image1,const grayEigen& image2,grayEigen& rlt)const;
+
 
     void compare(intensityEigen& image,int t,const grayEigen& mask,grayEigen& rlt,CMP_TYPE cmp_type)const;
 
