@@ -508,7 +508,7 @@ const QString ImageProcesser::morphologicalErosion(cv::Mat& image, const cv::Mat
 *   @return void
 *   @author Chanlin
 **************************************************/
-const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayEigen& se, grayEigen& rlt,bool is_bin) const {
     if (image.size() == 0) {
         qDebug() << "Input image is empty" << Qt::endl;
         return "error: empty image";
@@ -544,6 +544,7 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             bool all_foreground = true;
+            int min_val = 255;  // 初始化为最大灰度值
 
             // 检查结构元素覆盖的所有位置是否都是前景
             for (const auto& offset : offsets) {
@@ -554,22 +555,40 @@ const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayE
                 // // // 边界检查（超出边界的视为背景）
                 if (img_i < 0 || img_i >= rows || img_j < 0 || img_j >= cols) {
                     // all_foreground = false;
+                    // min_val = 0;
                     continue; // 对于边界外选择跳过，这是和opencv结果一致的关键
                 }
 
-                if (image(img_i, img_j) == 0) {  // 遇到背景
-                    all_foreground = false;
-                    break;
+                if(is_bin){
+                    if (image(img_i, img_j) == 0) {  // 遇到背景
+                        all_foreground = false;
+                        break;
+                    }
                 }
+                else{
+                    // 灰度
+                    if (image(img_i, img_j) < min_val) {
+                        min_val = image(img_i, img_j);
+                    }
+                }
+
             }
 
-            // 只有完全被结构元素覆盖且所有对应位置都是前景，结果才为前景
-            rlt(i, j) = all_foreground ? 255 : 0;
+            if(is_bin){
+                rlt(i, j) = all_foreground ? BINARY_ONE : BINARY_ZERO;
+            }
+            else{
+                rlt(i, j) = min_val;
+            }
         }
     }
 
     return "ok";
 }
+
+// const QString ImageProcesser::morphologicalErosion(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+//     return morphologicalErosion(image,se,rlt,true);
+// }
 
 /*************************************************
 *   开运算 cv
@@ -602,7 +621,7 @@ const QString ImageProcesser::morphologicalOepning(cv::Mat& image, const cv::Mat
 *   @return void
 *   @author Chanlin
 **************************************************/
-const QString ImageProcesser::morphologicalOepning(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+const QString ImageProcesser::morphologicalOepning(grayEigen& image, const grayEigen& se, grayEigen& rlt,bool is_bin) const {
     if (image.size() == 0) {
         qDebug() << "Input image is empty" << Qt::endl;
         return "error: empty image";
@@ -615,7 +634,7 @@ const QString ImageProcesser::morphologicalOepning(grayEigen& image, const grayE
 
     // 先腐蚀
     grayEigen temp;
-    QString result = morphologicalErosion(image, se, temp);
+    QString result = morphologicalErosion(image, se, temp,is_bin);
     if (result != "ok") {
         return result;
     }
@@ -655,7 +674,7 @@ const QString ImageProcesser::morphologicalClosing(cv::Mat& image, const cv::Mat
 *   @return void
 *   @author Chanlin
 **************************************************/
-const QString ImageProcesser::morphologicalClosing(grayEigen& image, const grayEigen& se, grayEigen& rlt) const {
+const QString ImageProcesser::morphologicalClosing(grayEigen& image, const grayEigen& se, grayEigen& rlt,bool is_bin) const {
     if (image.size() == 0) {
         qDebug() << "Input image is empty" << Qt::endl;
         return "error: empty image";
@@ -674,7 +693,7 @@ const QString ImageProcesser::morphologicalClosing(grayEigen& image, const grayE
     }
 
     // 再腐蚀
-    result = morphologicalErosion(temp, se, rlt);
+    result = morphologicalErosion(temp, se, rlt,is_bin);
 
     return result;
 }

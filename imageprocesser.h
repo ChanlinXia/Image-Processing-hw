@@ -122,13 +122,13 @@ public:
     const QString morphologicalDilation(grayEigen& image,const grayEigen& se,grayEigen& rlt)const;
 
     const QString morphologicalErosion(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
-    const QString morphologicalErosion(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+    const QString morphologicalErosion(grayEigen& image,const grayEigen& se,grayEigen& rlt,bool is_bin=true) const;
 
     const QString morphologicalOepning(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
-    const QString morphologicalOepning(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+    const QString morphologicalOepning(grayEigen& image,const grayEigen& se,grayEigen& rlt,bool is_bin=true) const;
 
     const QString morphologicalClosing(cv::Mat& image,const cv::Mat& se,cv::Mat& rlt) const;
-    const QString morphologicalClosing(grayEigen& image,const grayEigen& se,grayEigen& rlt) const;
+    const QString morphologicalClosing(grayEigen& image,const grayEigen& se,grayEigen& rlt,bool is_bin=true) const;
 
     // morphology function
     const QString distanceTransform(cv::Mat& image,DISTANCE_TYPE type,cv::Mat& rlt) const;
