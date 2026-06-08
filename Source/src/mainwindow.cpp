@@ -1,0 +1,43 @@
+#include "mainwindow.h"
+#include "pagehistogramandthreshold.h"
+#include "pageimagefilter.h"
+#include "pagebinaryoperation.h"
+#include "pagebinaryfunction.h"
+#include "pagegrayoperation.h"
+#include "pagegrayfunction.h"
+#include "./ui_mainwindow.h"
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+
+    this->resize(1000,1050);
+    this->setWindowTitle("Digital Image Processing");
+    std::vector<QString> tasks_lists={
+        "Histogram and Threshold",          // pdf3
+        "Conclution and Image Filters",     // pdf4
+        "Binary Morphological Operation",   //pdf7
+        "Binary Morphological Function",    // pdf7
+        "Gray Morphological Operation",    // pdf11
+        "Gray Morphological Function",    // pdf11
+    };
+
+    // auto page = ;
+    ui->tabWidget_task_tabs->addTab(new PageHistogramAndThreshold(),"Histogram and Threshold");
+    ui->tabWidget_task_tabs->addTab(new pageImageFilter(),"Image Filters");
+    ui->tabWidget_task_tabs->addTab(new pageBinaryOperation(false),"Binary Operation");
+    ui->tabWidget_task_tabs->addTab(new pageBinaryFunction(false),"Binary Function");
+    ui->tabWidget_task_tabs->addTab(new pageGrayOperation(false),"Grayscale Operation");
+    ui->tabWidget_task_tabs->addTab(new pageGrayFunction(false),"Grayscale Function");
+
+
+
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+

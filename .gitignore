@@ -1,8 +1,7 @@
-﻿*
-
-!*.c
-!*.h
-!*.ui
-!*.cpp
-
-!.gitignore
+﻿build/
+.qtcreator/
+Pro/
+build-Image_Processing-MSVC_Kits
+CMakeLists.txt.user
+CMakeLists.txt.autosave
+*.user
